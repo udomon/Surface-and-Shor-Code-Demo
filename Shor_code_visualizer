@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shor Code — 9-Qubit Error Correction Visualizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0E14;
+    --panel:#131826;
+    --panel-2:#181F2E;
+    --line:#262E42;
+    --text:#E7ECF3;
+    --muted:#8B95A7;
+    --cyan:#4FD1C5;
+    --cyan-dim:#2A5F5B;
+    --magenta:#C77DFF;
+    --magenta-dim:#5C4270;
+    --amber:#FFB454;
+    --green:#7ED9A6;
+    --red:#FF7A7A;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(1200px 600px at 50% -10%, #161D2E 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    min-height:100vh;
+    padding:28px 16px 60px;
+  }
+  .app{ max-width:1180px; margin:0 auto; }
+  header{ margin-bottom:22px; }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--cyan); margin-bottom:8px; display:flex; align-items:center; gap:8px;
+  }
+  .eyebrow::before{ content:''; width:8px; height:8px; border-radius:50%; background:var(--cyan); box-shadow:0 0 10px var(--cyan); }
+  h1{ font-size:clamp(24px,3.4vw,34px); margin:0 0 6px; font-weight:700; letter-spacing:-0.01em;}
+  .sub{ color:var(--muted); font-size:14.5px; max-width:720px; line-height:1.55; }
+
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:14px 16px; margin:20px 0 18px;
+  }
+  .tool-group{ display:flex; gap:6px; background:var(--panel-2); padding:5px; border-radius:10px; border:1px solid var(--line);}
+  .tbtn{
+    font-family:'JetBrains Mono',monospace; font-size:12.5px; padding:8px 12px; border-radius:7px;
+    border:1px solid transparent; background:transparent; color:var(--muted); cursor:pointer;
+    display:flex; align-items:center; gap:7px; transition:.15s;
+  }
+  .tbtn:hover{ color:var(--text); }
+  .tbtn.active{ background:var(--panel); color:var(--text); border-color:var(--line); }
+  .tbtn .dot{ width:8px; height:8px; border-radius:50%; }
+  .tbtn.tool-select.active .dot{ background:var(--muted); }
+  .tbtn.tool-bit.active{ color:var(--cyan); } .tbtn.tool-bit.active .dot{ background:var(--cyan); box-shadow:0 0 8px var(--cyan);}
+  .tbtn.tool-phase.active{ color:var(--magenta);} .tbtn.tool-phase.active .dot{ background:var(--magenta); box-shadow:0 0 8px var(--magenta);}
+  .tbtn .dot{ background:var(--line); }
+
+  .action-group{ display:flex; gap:8px; margin-left:auto; flex-wrap:wrap; }
+  .abtn{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:13px; padding:9px 14px; border-radius:9px;
+    border:1px solid var(--line); cursor:pointer; transition:.15s; background:var(--panel-2); color:var(--text);
+  }
+  .abtn:hover{ transform:translateY(-1px); }
+  .abtn:disabled{ opacity:.35; cursor:not-allowed; transform:none; }
+  .abtn.primary-bit{ border-color:var(--cyan-dim); color:var(--cyan); }
+  .abtn.primary-bit:hover:not(:disabled){ background:rgba(79,209,197,.08); }
+  .abtn.primary-phase{ border-color:var(--magenta-dim); color:var(--magenta); }
+  .abtn.primary-phase:hover:not(:disabled){ background:rgba(199,125,255,.08); }
+  .abtn.primary-full{ border-color:var(--cyan-dim); color:var(--text); background:linear-gradient(90deg, rgba(79,209,197,.12), rgba(199,125,255,.12)); border-image: linear-gradient(90deg, var(--cyan), var(--magenta)) 1; }
+  .abtn.primary-full:hover:not(:disabled){ background:linear-gradient(90deg, rgba(79,209,197,.2), rgba(199,125,255,.2)); }
+  .abtn.ghost{ color:var(--muted); }
+
+  .stage-wrap{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:10px; overflow:hidden;
+  }
+  svg#stage{ width:100%; height:auto; display:block; }
+
+  .hint{ font-family:'JetBrains Mono',monospace; font-size:11px; fill:var(--muted); }
+
+  .console{
+    margin-top:16px; background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:16px 18px; display:flex; flex-direction:column; gap:12px;
+  }
+  .console-header{
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--muted); display:flex; justify-content:space-between; align-items:center;
+  }
+  #stepIndicator{ color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:11px; }
+  .caption{
+    font-size:15px; line-height:1.6; min-height:44px; color:var(--text);
+  }
+  .caption b{ color:var(--amber); }
+  .caption .ok{ color:var(--green); }
+  .ledrow{ display:flex; gap:22px; flex-wrap:wrap; }
+  .led-group{
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted);
+    display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--line);
+    padding:7px 11px; border-radius:9px;
+  }
+  .led{
+    width:13px; height:13px; border-radius:3px; background:#232B3E; border:1px solid var(--line);
+    display:inline-block; transition:.2s;
+  }
+  .led.on-cyan{ background:var(--cyan); box-shadow:0 0 8px var(--cyan); border-color:var(--cyan); }
+  .led.on-magenta{ background:var(--magenta); box-shadow:0 0 8px var(--magenta); border-color:var(--magenta); }
+
+  .controls{
+    display:flex; align-items:center; gap:10px; margin-top:14px; flex-wrap:wrap;
+  }
+  .cbtn{
+    font-family:'JetBrains Mono',monospace; font-size:13px; padding:9px 16px; border-radius:9px;
+    border:1px solid var(--line); background:var(--panel-2); color:var(--text); cursor:pointer;
+  }
+  .cbtn:disabled{ opacity:.3; cursor:not-allowed; }
+  .cbtn.play{ color:var(--green); border-color:#2E5E48; }
+  .progress-track{ flex:1; height:4px; background:var(--line); border-radius:2px; overflow:hidden; min-width:80px;}
+  .progress-fill{ height:100%; background:linear-gradient(90deg,var(--cyan),var(--magenta)); width:0%; transition:width .25s; }
+
+  .legend{ display:flex; gap:18px; flex-wrap:wrap; margin-top:14px; font-size:12px; color:var(--muted);}
+  .legend span{ display:inline-flex; align-items:center; gap:6px;}
+  .legend i{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+
+  footer{ margin-top:22px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; line-height:1.7; font-family:'JetBrains Mono',monospace;}
+  footer b{ color:var(--text); }
+
+  .qubit-circle{ fill:var(--panel-2); stroke:var(--line); stroke-width:2; cursor:pointer; transition:.2s; }
+  .qubit-circle:hover{ stroke:var(--muted); }
+  .qubit-circle.has-x{ stroke:var(--cyan); fill:rgba(79,209,197,.12); }
+  .qubit-circle.plus-state{ stroke:var(--magenta); }
+  .qubit-circle.flag-z{ fill:rgba(199,125,255,.14); }
+  .qubit-label{ fill:var(--text); font-family:'JetBrains Mono',monospace; font-size:15px; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
+  .block-label{ fill:var(--muted); font-family:'JetBrains Mono',monospace; font-size:13px; text-anchor:middle; letter-spacing:.08em; }
+  .reg-label{ fill:#5C6478; font-family:'JetBrains Mono',monospace; font-size:10px; text-anchor:middle; }
+
+  .err-badge{ opacity:0; transition:.25s; }
+  .err-badge.show{ opacity:1; }
+  .err-badge circle{ fill:var(--bg); stroke:var(--cyan); stroke-width:1.5; }
+  .err-badge text{ fill:var(--cyan); font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; text-anchor:middle; dominant-baseline:middle; }
+
+  .z-badge{ opacity:0; transition:.25s; }
+  .z-badge.show{ opacity:1; }
+  .z-badge circle{ fill:var(--bg); stroke:var(--magenta); stroke-width:1.5; }
+  .z-badge text{ fill:var(--magenta); font-family:'JetBrains Mono',monospace; font-weight:700; font-size:12px; text-anchor:middle; dominant-baseline:middle; }
+
+  .anc-circle{ fill:var(--panel-2); stroke:var(--line); stroke-width:2; opacity:0; transition:.3s; }
+  .anc-circle.show{ opacity:1; }
+  .anc-circle.lit-cyan{ fill:rgba(79,209,197,.18); stroke:var(--cyan); }
+  .anc-circle.lit-magenta{ fill:rgba(199,125,255,.18); stroke:var(--magenta); }
+  .anc-label{ fill:var(--muted); font-family:'JetBrains Mono',monospace; font-size:12px; text-anchor:middle; dominant-baseline:middle; opacity:0; transition:.3s; pointer-events:none;}
+  .anc-label.show{ opacity:1; }
+  .anc-value{ fill:var(--text); font-family:'JetBrains Mono',monospace; font-weight:700; font-size:14px; text-anchor:middle; dominant-baseline:middle; opacity:0; transition:.3s; pointer-events:none; }
+  .anc-value.show{ opacity:1; }
+
+  .cx-line{ stroke:var(--cyan); stroke-width:1.6; opacity:0; transition:.3s; marker-end:url(#arrowCyan); }
+  .cx-line.show{ opacity:.85; }
+  .cxp-line{ stroke:var(--magenta); stroke-width:2; opacity:0; transition:.3s; marker-end:url(#arrowMagenta); }
+  .cxp-line.show{ opacity:.85; }
+
+  .had-box{ opacity:0; transition:.3s; }
+  .had-box.show{ opacity:1; }
+  .had-box rect{ fill:var(--panel); stroke:var(--magenta); stroke-width:1.5; rx:5; }
+  .had-box text{ fill:var(--magenta); font-family:'JetBrains Mono',monospace; font-weight:700; font-size:13px; text-anchor:middle; dominant-baseline:middle; }
+
+  .msg-flag{ opacity:0; transition:.3s; }
+  .msg-flag.show{ opacity:1; }
+  .msg-flag rect{ rx:8; }
+  .msg-flag text{ font-family:'JetBrains Mono',monospace; font-size:11.5px; text-anchor:middle; dominant-baseline:middle; }
+
+  .correction-flash{ opacity:0; }
+  .correction-flash.show{ animation: flashPulse 1s ease-in-out; }
+  @keyframes flashPulse{
+    0%{ opacity:0; } 30%{ opacity:1; } 100%{ opacity:0; }
+  }
+
+  @media (max-width:720px){
+    .action-group{ margin-left:0; width:100%; }
+    .abtn{ flex:1; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="eyebrow">Qiskit · ShorCode</div>
+    <h1>Shor Code — 9-Qubit Error Correction</h1>
+    <div class="sub">Click a qubit with a tool selected to plant a physical error — place an X error, a Z error, or both at once — then press Run to walk through the full correction: bit-flip (X) errors are caught first by comparing individual qubits per-block, then phase-flip (Z) errors are caught by comparing whole blocks in the Hadamard basis. Both corrections play back to back, no reset needed in between.</div>
+  </header>
+
+  <div class="toolbar">
+    <div class="tool-group">
+      <button class="tbtn tool-select active" data-tool="select"><span class="dot"></span>Select</button>
+      <button class="tbtn tool-bit" data-tool="bitflip"><span class="dot"></span>Bit-Flip (X)</button>
+      <button class="tbtn tool-phase" data-tool="phaseflip"><span class="dot"></span>Phase-Flip (Z)</button>
+    </div>
+    <div class="action-group">
+      <button class="abtn ghost" id="clearBtn">Clear Errors</button>
+      <button class="abtn primary-full" id="runBtn">Run Correction ▶</button>
+    </div>
+  </div>
+
+  <div class="stage-wrap">
+    <svg id="stage" viewBox="0 0 1200 400" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrowCyan" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="var(--cyan)"/>
+        </marker>
+        <marker id="arrowMagenta" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 Z" fill="var(--magenta)"/>
+        </marker>
+      </defs>
+      <g id="layerArrows"></g>
+      <g id="layerAncillas"></g>
+      <g id="layerHadamard"></g>
+      <g id="layerQubits"></g>
+      <g id="layerBadges"></g>
+      <g id="layerMsgs"></g>
+    </svg>
+  </div>
+
+  <div class="console">
+    <div class="console-header"><span>Syndrome Console</span><span id="stepIndicator">idle</span></div>
+    <div class="caption" id="caption">Pick a tool above and click a qubit to place an X error, a Z error, or both, then press Run to watch the bit-flip correction followed immediately by the phase-flip correction — no reset required in between.</div>
+    <div class="ledrow" id="ledrow"></div>
+  </div>
+
+  <div class="controls">
+    <button class="cbtn" id="prevBtn" disabled>◀ Prev</button>
+    <button class="cbtn play" id="playBtn" disabled>▶ Play</button>
+    <button class="cbtn" id="nextBtn" disabled>Next ▶</button>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <button class="cbtn ghost" id="resetBtn">Reset</button>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:var(--cyan)"></i> Bit-flip error / X-basis ancilla</span>
+    <span><i style="background:var(--magenta)"></i> Phase-flip error / Z-basis ancilla</span>
+    <span><i style="background:var(--amber)"></i> Syndrome flagged</span>
+    <span><i style="background:var(--green)"></i> Corrected</span>
+  </div>
+
+  <footer>
+    Maps to <b>Shor_Code.py</b>: Block 1/2/3 → registers <b>XQ1 / XQ2 / XQ3</b>, bit-flip ancillas → <b>XA1 / XA2 / XA3</b>,
+    phase ancillas → <b>ZA</b>. In the phase-flip check, Block 1 plays the role of the "middle" qubit (wired to both ancillas),
+    same as qubit 1 does in each block's own bit-flip check — the block-level circuit is a scaled-up copy of the single-block one.
+  </footer>
+</div>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs={}, cls){
+  const e = document.createElementNS(NS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  if(cls) e.setAttribute("class", cls);
+  return e;
+}
+
+// ---------- layout ----------
+const blockCX = {1:220, 2:600, 3:980};
+const QY = 100;
+const QDX = {0:-70, 1:0, 2:70};
+const QR = 27;
+const ANC_Y = 260;
+const PHASE_ANC_Y = 260;
+
+const layerArrows = document.getElementById("layerArrows");
+const layerAncillas = document.getElementById("layerAncillas");
+const layerHadamard = document.getElementById("layerHadamard");
+const layerQubits = document.getElementById("layerQubits");
+const layerBadges = document.getElementById("layerBadges");
+const layerMsgs = document.getElementById("layerMsgs");
+
+const refs = { qcircle:{}, qlabel:{}, xbadge:{}, zbadge:{}, had:{}, ancBit:{}, ancBitLabel:{}, ancBitValue:{},
+  cxLinesA:{}, cxLinesB:{}, ancZ:{}, ancZLabel:{}, ancZValue:{}, cxpLines:{}, blockMsg:{}, plusLabel:{} };
+
+// ----- static: block labels + qubits -----
+[1,2,3].forEach(b=>{
+  const cx = blockCX[b];
+  const blockLabel = el("text", {x:cx, y:34}, "block-label");
+  blockLabel.textContent = `BLOCK ${b}  ·  XQ${b}`;
+  layerQubits.appendChild(blockLabel);
+
+  // Z badge (block-level phase error flag) — sits below the block label, clear of it
+  const zg = el("g", {}, "z-badge");
+  const zc = el("circle", {cx:cx, cy:60, r:9});
+  const zt = el("text", {x:cx, y:61});
+  zt.textContent = "Z";
+  zg.appendChild(zc); zg.appendChild(zt);
+  layerBadges.appendChild(zg);
+  refs.zbadge[b] = zg;
+
+  [0,1,2].forEach(i=>{
+    const x = cx + QDX[i];
+    const g = el("g", {});
+    const circ = el("circle", {cx:x, cy:QY, r:QR}, "qubit-circle");
+    circ.dataset.block = b; circ.dataset.idx = i;
+    circ.addEventListener("click", ()=>onQubitClick(b,i));
+    const lab = el("text", {x:x, y:QY}, "qubit-label");
+    lab.textContent = i;
+    const reg = el("text", {x:x, y:QY+44}, "reg-label");
+    reg.textContent = `XQ${b}[${i}]`;
+    g.appendChild(circ); g.appendChild(lab); g.appendChild(reg);
+    layerQubits.appendChild(g);
+    refs.qcircle[`${b}-${i}`] = circ;
+    refs.qlabel[`${b}-${i}`] = lab;
+
+    // hadamard box
+    const hg = el("g", {}, "had-box");
+    const hr = el("rect", {x:x-14, y:QY-70, width:28, height:22});
+    const ht = el("text", {x:x, y:QY-59});
+    ht.textContent = "H";
+    hg.appendChild(hr); hg.appendChild(ht);
+    layerHadamard.appendChild(hg);
+    refs.had[`${b}-${i}`] = hg;
+
+    // X error badge (top-right of qubit)
+    const bg = el("g", {}, "err-badge");
+    const bc = el("circle", {cx:x+18, cy:QY-18, r:11});
+    const bt = el("text", {x:x+18, y:QY-17});
+    bt.textContent = "X";
+    bg.appendChild(bc); bg.appendChild(bt);
+    layerBadges.appendChild(bg);
+    refs.xbadge[`${b}-${i}`] = bg;
+  });
+});
+
+// ----- bit-flip ancillas (2 per block) -----
+[1,2,3].forEach(b=>{
+  const cx = blockCX[b];
+  [0,1].forEach(a=>{
+    const x = cx + (a===0 ? -38 : 38);
+    const circ = el("circle", {cx:x, cy:ANC_Y, r:20}, "anc-circle");
+    const lab = el("text", {x:x, y:ANC_Y-32}, "anc-label");
+    lab.textContent = `XA${b}[${a}]`;
+    const val = el("text", {x:x, y:ANC_Y}, "anc-value");
+    layerAncillas.appendChild(circ);
+    // NOTE: label intentionally not appended to the DOM — it overlapped the CX arrows.
+    // (ref kept so later .classList calls on refs.ancBitLabel[...] remain harmless no-ops)
+    layerAncillas.appendChild(val);
+    refs.ancBit[`${b}-${a}`] = circ;
+    refs.ancBitLabel[`${b}-${a}`] = lab;
+    refs.ancBitValue[`${b}-${a}`] = val;
+
+    // cx lines: group A connects q0,q1 -> anc0 ; group B connects q1,q2 -> anc1
+    if(a===0){
+      const l1 = el("line", {x1:cx+QDX[0], y1:QY+QR, x2:x, y2:ANC_Y-20}, "cx-line");
+      const l2 = el("line", {x1:cx+QDX[1], y1:QY+QR, x2:x, y2:ANC_Y-20}, "cx-line");
+      layerArrows.appendChild(l1); layerArrows.appendChild(l2);
+      refs.cxLinesA[b] = [l1,l2];
+    } else {
+      const l1 = el("line", {x1:cx+QDX[1], y1:QY+QR, x2:x, y2:ANC_Y-20}, "cx-line");
+      const l2 = el("line", {x1:cx+QDX[2], y1:QY+QR, x2:x, y2:ANC_Y-20}, "cx-line");
+      layerArrows.appendChild(l1); layerArrows.appendChild(l2);
+      refs.cxLinesB[b] = [l1,l2];
+    }
+  });
+
+  // per-block message flag (bit-flip)
+  const mg = el("g", {}, "msg-flag");
+  const mr = el("rect", {x:cx-130, y:ANC_Y+45, width:260, height:34, fill:"var(--panel-2)", stroke:"var(--line)"});
+  const mt = el("text", {x:cx, y:ANC_Y+63, fill:"var(--amber)"});
+  mg.appendChild(mr); mg.appendChild(mt);
+  layerMsgs.appendChild(mg);
+  refs.blockMsg[b] = {g:mg, t:mt, r:mr};
+});
+
+// ----- phase ancillas (Z0 between block1&2, Z1 between block2&3) -----
+const phaseAncX = { 0: (blockCX[1]+blockCX[2])/2, 1: (blockCX[2]+blockCX[3])/2 };
+[0,1].forEach(a=>{
+  const x = phaseAncX[a];
+  const circ = el("circle", {cx:x, cy:PHASE_ANC_Y, r:24}, "anc-circle");
+  const lab = el("text", {x:x, y:PHASE_ANC_Y-36}, "anc-label");
+  lab.textContent = `ZA[${a}]`;
+  const val = el("text", {x:x, y:PHASE_ANC_Y}, "anc-value");
+  layerAncillas.appendChild(circ);
+  // NOTE: label intentionally not appended to the DOM — it overlapped the CX arrows.
+  layerAncillas.appendChild(val);
+  refs.ancZ[a] = circ; refs.ancZLabel[a] = lab; refs.ancZValue[a] = val;
+});
+// cxp lines: block1->Z0, block2->Z0, block2->Z1, block3->Z1
+function makeCxp(fromBlock, toA){
+  const x1 = blockCX[fromBlock], y1 = QY+90;
+  const x2 = phaseAncX[toA], y2 = PHASE_ANC_Y-24;
+  const l = el("line", {x1, y1, x2, y2}, "cxp-line");
+  layerArrows.appendChild(l);
+  return l;
+}
+refs.cxpLines[1] = { toZ0: makeCxp(1,0), toZ1: makeCxp(1,1) };
+refs.cxpLines[2] = { toZ0: makeCxp(2,0) };
+refs.cxpLines[3] = { toZ1: makeCxp(3,1) };
+
+// overall phase message flag (single, centered)
+const pmg = el("g", {}, "msg-flag");
+const pmr = el("rect", {x:600-160, y:PHASE_ANC_Y+45, width:320, height:34, fill:"var(--panel-2)", stroke:"var(--line)"});
+const pmt = el("text", {x:600, y:PHASE_ANC_Y+63, fill:"var(--magenta)"});
+pmg.appendChild(pmr); pmg.appendChild(pmt);
+layerMsgs.appendChild(pmg);
+refs.phaseMsg = {g:pmg, t:pmt};
+
+// correction flash rings (reuse per qubit)
+const flashRefs = {};
+[1,2,3].forEach(b=>{ [0,1,2].forEach(i=>{
+  const x = blockCX[b]+QDX[i];
+  const ring = el("circle", {cx:x, cy:QY, r:QR+8, fill:"none", stroke:"var(--green)", "stroke-width":3}, "correction-flash");
+  layerBadges.appendChild(ring);
+  flashRefs[`${b}-${i}`] = ring;
+}); });
+const blockFlash = {};
+[1,2,3].forEach(b=>{
+  const x = blockCX[b];
+  const ring = el("rect", {x:x-95, y:QY-90, width:190, height:210, rx:14, fill:"none", stroke:"var(--green)", "stroke-width":2.5}, "correction-flash");
+  layerBadges.appendChild(ring);
+  blockFlash[b] = ring;
+});
+
+// Keep all your layout setup (NS, el, blockCX, refs, etc.) exactly as they are.
+// ... (Your layout and DOM element generation remains identical above here) ...
+
+// ---------- state ----------
+let tool = "select";
+let bitError = null;   // {block, idx}
+let phaseError = null; // block number or null
+let mode = "idle";      // idle | bitflip | phaseflip
+let step = 0;
+let playTimer = null;
+
+const BIT_STEPS = 7;   // 0..6
+const PHASE_STEPS = 7; // 0..6
+const TOTAL_STEPS = BIT_STEPS + PHASE_STEPS; // 0..13 — bit-flip stage then phase-flip stage, back to back
+let localStep = 0; // step within the current stage (bit-flip or phase-flip), set by renderStep()
+
+// bit position -> ancilla pattern (a0,a1)
+const POS_TO_PATTERN = { none:[0,0], 0:[1,0], 1:[1,1], 2:[0,1] };
+// phase: block roles -> position (block2=pos0, block1=pos1, block3=pos2)
+const BLOCK_ROLE = { 2:0, 1:1, 3:2 };
+const ROLE_BLOCK = { 0:2, 1:1, 2:3 };
+
+function patternFor(idxOrNull){
+  return POS_TO_PATTERN[idxOrNull===null ? "none" : idxOrNull];
+}
+
+// ---------- tool buttons ----------
+document.querySelectorAll(".tbtn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tbtn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    tool = btn.dataset.tool;
+  });
+});
+
+function onQubitClick(b,i){
+  if(mode !== "idle") return; // don't allow editing mid-run
+  if(tool === "bitflip"){
+    if(bitError && bitError.block===b && bitError.idx===i){
+      bitError = null;
+    } else {
+      bitError = {block:b, idx:i};
+    }
+    renderIdle();
+  } else if(tool === "phaseflip"){
+    if(phaseError === b) phaseError = null;
+    else phaseError = b;
+    renderIdle();
+  }
+}
+
+document.getElementById("clearBtn").addEventListener("click", ()=>{
+  if(mode!=="idle") return;
+  bitError = null; phaseError = null;
+  renderIdle();
+});
+
+function renderIdle(){
+  // show only X/Z badges reflecting current placed errors; hide everything else
+  Object.keys(refs.xbadge).forEach(k=>refs.xbadge[k].classList.remove("show"));
+  Object.values(refs.zbadge).forEach(z=>z.classList.remove("show"));
+  Object.values(refs.qcircle).forEach(c=>c.classList.remove("has-x","plus-state","flag-z"));
+  if(bitError){
+    refs.xbadge[`${bitError.block}-${bitError.idx}`].classList.add("show");
+    refs.qcircle[`${bitError.block}-${bitError.idx}`].classList.add("has-x");
+  }
+  if(phaseError){
+    refs.zbadge[phaseError].classList.add("show");
+    [0,1,2].forEach(i=> refs.qcircle[`${phaseError}-${i}`].classList.add("flag-z"));
+  }
+  document.getElementById("caption").innerHTML =
+    "Pick a tool above and click a qubit to place an X error, a Z error, or both, then press Run — or just press Run to watch a clean round-trip through the code.";
+  document.getElementById("stepIndicator").textContent = "idle";
+  document.getElementById("ledrow").innerHTML = "";
+  document.getElementById("progressFill").style.width = "0%";
+  setControlsEnabled(false);
+}
+renderIdle();
+
+// ---------- run button integrated with Flask ----------
+document.getElementById("runBtn").addEventListener("click", ()=>{ startRun(); });
+document.getElementById("resetBtn").addEventListener("click", fullReset);
+
+function fullReset(){
+  stopPlay();
+  mode = "idle"; step = 0; localStep = 0;
+  hideAllRunLayers();
+  document.getElementById("runBtn").disabled = false;
+  renderIdle();
+}
+
+// Asynchronous implementation connecting the web visualizer directly to the Qiskit engine
+// Runs the bit-flip correction and the phase-flip correction back to back, as one
+// continuous walkthrough (steps 0-6 bit-flip, steps 7-13 phase-flip) so the user
+// never has to hit Reset in between to see both corrections happen.
+async function startRun(){
+  stopPlay();
+  mode = "full";
+  step = 0;
+  
+  // Lock the run button while fetching
+  document.getElementById("runBtn").disabled = true;
+  document.getElementById("caption").innerHTML = "Sending circuit blueprint to <b>Python Flask Server</b> & compiling Qiskit simulation...";
+
+  try {
+      // Send selected bit and phase coordinates to your app.py endpoint
+      const response = await fetch('/run_circuit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              bitError: bitError,
+              phaseError: phaseError
+          })
+      });
+      
+      const resData = await response.json();
+      
+      if (resData.status === "success") {
+          // Print backend measurement counts directly into your browser debug console
+          console.log("=== Qiskit Circuit Run Success ===");
+          console.log("Probabilities:", resData.simulation_results);
+          
+          // Proceed into visual walkthrough steps
+          setControlsEnabled(true);
+          hideAllRunLayers();
+          renderStep();
+      } else {
+          throw new Error("Simulation logic failed on backend.");
+      }
+      
+  } catch (err) {
+      console.error("Backend request failed:", err);
+      document.getElementById("caption").innerHTML = 
+          "<span class='ok' style='color:var(--red)'>Error connecting to Flask server. Run <code>python app.py</code> in terminal.</span>";
+  }
+}
+
+function hideAllRunLayers(){
+  document.querySelectorAll(".had-box, .cx-line, .cxp-line, .anc-circle, .anc-label, .anc-value, .msg-flag, .correction-flash")
+    .forEach(e=>e.classList.remove("show"));
+  Object.values(refs.qcircle).forEach(c=>c.classList.remove("plus-state"));
+}
+
+function setControlsEnabled(on){
+  document.getElementById("prevBtn").disabled = !on;
+  document.getElementById("nextBtn").disabled = !on;
+  document.getElementById("playBtn").disabled = !on;
+}
+
+document.getElementById("nextBtn").addEventListener("click", ()=>{
+  const max = TOTAL_STEPS-1;
+  if(step < max){ step++; renderStep(); } else stopPlay();
+});
+document.getElementById("prevBtn").addEventListener("click", ()=>{
+  if(step > 0){ step--; renderStep(); }
+});
+document.getElementById("playBtn").addEventListener("click", ()=>{
+  if(playTimer){ stopPlay(); return; }
+  const btn = document.getElementById("playBtn");
+  btn.textContent = "❚❚ Pause";
+  playTimer = setInterval(()=>{
+    const max = TOTAL_STEPS-1;
+    if(step < max){ step++; renderStep(); }
+    else stopPlay();
+  }, 1600);
+});
+function stopPlay(){
+  if(playTimer){ clearInterval(playTimer); playTimer = null; }
+  document.getElementById("playBtn").textContent = "▶ Play";
+}
+
+function renderStep(){
+  hideAllRunLayers();
+
+  const inBitStage = step <= BIT_STEPS-1;      // steps 0-6
+  const stageNum = inBitStage ? 1 : 2;
+  const stageName = inBitStage ? "bit-flip" : "phase-flip";
+  localStep = inBitStage ? step : step - BIT_STEPS; // step within the current stage, 0-6
+
+  document.getElementById("stepIndicator").textContent =
+    `Stage ${stageNum}/2 · ${stageName} · step ${localStep+1}/${BIT_STEPS}`;
+  document.getElementById("progressFill").style.width = `${(step/(TOTAL_STEPS-1))*100}%`;
+  document.getElementById("prevBtn").disabled = step===0;
+
+  if(inBitStage) renderBitFlipStep();
+  else renderPhaseFlipStep();
+}
+
+// ================= BIT FLIP WALKTHROUGH =================
+function renderBitFlipStep(){
+  const step = localStep; // this stage's own 0-6 step, independent of the overall 0-13 counter
+  const cap = document.getElementById("caption");
+  const led = document.getElementById("ledrow");
+  led.innerHTML = "";
+
+  Object.keys(refs.xbadge).forEach(k=>refs.xbadge[k].classList.remove("show"));
+  Object.values(refs.qcircle).forEach(c=>c.classList.remove("has-x"));
+  if(bitError){
+    refs.xbadge[`${bitError.block}-${bitError.idx}`].classList.add("show");
+  }
+
+  if(step>=1 && bitError){
+    refs.qcircle[`${bitError.block}-${bitError.idx}`].classList.add("has-x");
+  }
+
+  if(step===0){
+    cap.innerHTML = "Encoding complete. Each logical qubit is spread across 3 physical qubits per block (<b>XQ1/2/3</b>), so a single bit-flip can be caught and reversed.";
+  }
+  if(step===1){
+    cap.innerHTML = bitError
+      ? `Noise strikes: an <b>X error</b> lands on <b>XQ${bitError.block}[${bitError.idx}]</b>.`
+      : "No bit-flip error placed — click a qubit with the Bit-Flip tool before running, or continue to see a clean syndrome.";
+  }
+  if(step>=2){
+    [1,2,3].forEach(b=>{ refs.cxLinesA[b].forEach(l=>l.classList.add("show")); });
+    [1,2,3].forEach(b=>{
+      refs.ancBit[`${b}-0`].classList.add("show");
+      refs.ancBitLabel[`${b}-0`].classList.add("show");
+    });
+  }
+  if(step===2){
+    cap.innerHTML = "Step 1 — parity check <b>A</b>: qubit 0 and qubit 1 of each block are compared into ancilla <b>XA[0]</b>.";
+  }
+  if(step>=3){
+    [1,2,3].forEach(b=>{ refs.cxLinesB[b].forEach(l=>l.classList.add("show")); });
+    [1,2,3].forEach(b=>{
+      refs.ancBit[`${b}-1`].classList.add("show");
+      refs.ancBitLabel[`${b}-1`].classList.add("show");
+    });
+  }
+  if(step===3){
+    cap.innerHTML = "Step 2 — parity check <b>B</b>: qubit 1 and qubit 2 of each block are compared into ancilla <b>XA[1]</b>.";
+  }
+
+  if(step>=4){
+    [1,2,3].forEach(b=>{
+      const idx = (bitError && bitError.block===b) ? bitError.idx : null;
+      const [a0,a1] = patternFor(idx);
+      [0,1].forEach(a=>{
+        const v = a===0?a0:a1;
+        const circ = refs.ancBit[`${b}-${a}`];
+        const val = refs.ancBitValue[`${b}-${a}`];
+        val.textContent = v;
+        val.classList.add("show");
+        circ.classList.toggle("lit-cyan", v===1);
+      });
+      const g = document.createElement("div"); g.className = "led-group";
+      g.innerHTML = `Block ${b} &nbsp;
+        <span class="led ${a0? "on-cyan":""}"></span>
+        <span class="led ${a1? "on-cyan":""}"></span>`;
+      led.appendChild(g);
+    });
+  }
+  if(step===4){
+    cap.innerHTML = "Measuring <b>XA[0]</b> and <b>XA[1]</b> in every block collapses each syndrome to a classical bit pair.";
+  }
+
+  if(step>=5){
+    [1,2,3].forEach(b=>{
+      const idx = (bitError && bitError.block===b) ? bitError.idx : null;
+      const {g,t,r} = refs.blockMsg[b];
+      g.classList.add("show");
+      if(idx===null){
+        t.textContent = `Block ${b}: syndrome 00 — no error`;
+        t.setAttribute("fill","var(--green)");
+        r.setAttribute("stroke","#2E5E48");
+      } else {
+        t.textContent = `Block ${b}: bit-flip on qubit ${idx}`;
+        t.setAttribute("fill","var(--amber)");
+        r.setAttribute("stroke","var(--amber)");
+      }
+    });
+  }
+  if(step===5){
+    cap.innerHTML = bitError
+      ? `Syndrome decoded → <b>bit-flip error on XQ${bitError.block}[${bitError.idx}]</b>. The other two blocks report a clean 00 syndrome.`
+      : `Syndrome decoded → all three blocks report <span class="ok">00, no error</span>.`;
+  }
+
+  if(step>=6){
+    if(bitError){
+      const key = `${bitError.block}-${bitError.idx}`;
+      flashRefs[key].classList.add("show");
+      refs.qcircle[key].classList.remove("has-x");
+      refs.xbadge[key].classList.remove("show");
+    }
+  }
+  if(step===6){
+    cap.innerHTML = bitError
+      ? `Correction applied: an <span class="ok">X gate flips XQ${bitError.block}[${bitError.idx}] back</span>, restoring the encoded state.`
+      : `Nothing to correct — the block was already clean. <span class="ok">Bit-flip round-trip complete.</span>`;
+  }
+}
+
+// ================= PHASE FLIP WALKTHROUGH =================
+function renderPhaseFlipStep(){
+  const step = localStep; // this stage's own 0-6 step, independent of the overall 0-13 counter
+  const cap = document.getElementById("caption");
+  const led = document.getElementById("ledrow");
+  led.innerHTML = "";
+
+  Object.values(refs.zbadge).forEach(z=>z.classList.remove("show"));
+  if(phaseError) refs.zbadge[phaseError].classList.add("show");
+
+  if(step>=0){
+    Object.values(refs.had).forEach(h=>h.classList.add("show"));
+  }
+  if(step===0){
+    cap.innerHTML = "<span class='ok'>Bit-flip correction complete.</span> Now for the phase-flip check — Hadamard gates rotate every physical qubit into the <b>±</b> basis, where a phase-flip behaves just like a bit-flip.";
+  }
+
+  if(step>=1){
+    [1,2,3].forEach(b=>{
+      [0,1,2].forEach(i=>{
+        const c = refs.qcircle[`${b}-${i}`];
+        c.classList.add("plus-state");
+        c.classList.toggle("flag-z", phaseError===b);
+      });
+    });
+  }
+  if(step===1){
+    cap.innerHTML = phaseError
+      ? `A phase-flip lands on <b>Block ${phaseError}</b> — in this basis its parity reads <b>|−⟩</b> instead of <b>|+⟩</b>.`
+      : "No phase-flip error placed — click any qubit in a block with the Phase-Flip tool before running, or continue for a clean round-trip.";
+  }
+
+  if(step>=2){
+    refs.cxpLines[1].toZ0.classList.add("show");
+    refs.cxpLines[2].toZ0.classList.add("show");
+    refs.ancZ[0].classList.add("show");
+    refs.ancZLabel[0].classList.add("show");
+  }
+  if(step===2){
+    cap.innerHTML = "Step 1 — <b>Block 1</b> and <b>Block 2</b>'s combined parity feeds ancilla <b>ZA[0]</b>.";
+  }
+
+  if(step>=3){
+    refs.cxpLines[1].toZ1.classList.add("show");
+    refs.cxpLines[3].toZ1.classList.add("show");
+    refs.ancZ[1].classList.add("show");
+    refs.ancZLabel[1].classList.add("show");
+  }
+  if(step===3){
+    cap.innerHTML = "Step 2 — <b>Block 1</b> and <b>Block 3</b>'s combined parity feeds ancilla <b>ZA[1]</b>. Block 1 touches both ancillas, exactly like the middle qubit inside each block's own bit-flip check.";
+  }
+
+  let z0=0, z1=0;
+  if(step>=4){
+    const role = phaseError ? BLOCK_ROLE[phaseError] : null;
+    [z0,z1] = patternFor(role);
+    refs.ancZValue[0].textContent = z0; refs.ancZValue[0].classList.add("show");
+    refs.ancZValue[1].textContent = z1; refs.ancZValue[1].classList.add("show");
+    refs.ancZ[0].classList.toggle("lit-magenta", z0===1);
+    refs.ancZ[1].classList.toggle("lit-magenta", z1===1);
+    const g = document.createElement("div"); g.className = "led-group";
+    g.innerHTML = `ZA &nbsp;
+      <span class="led ${z0? "on-magenta":""}"></span>
+      <span class="led ${z1? "on-magenta":""}"></span>`;
+    led.appendChild(g);
+  }
+  if(step===4){
+    cap.innerHTML = "Measuring <b>ZA[0]</b> and <b>ZA[1]</b> collapses the block-level syndrome to a classical bit pair.";
+  }
+
+  if(step>=5){
+    const {g,t} = refs.phaseMsg;
+    g.classList.add("show");
+    if(!phaseError){
+      t.textContent = "Syndrome 00 — no phase-flip error";
+      t.setAttribute("fill","var(--green)");
+    } else {
+      t.textContent = `Syndrome ${z0}${z1} → phase-flip in Block ${phaseError}`;
+      t.setAttribute("fill","var(--magenta)");
+    }
+  }
+  if(step===5){
+    cap.innerHTML = phaseError
+      ? `Syndrome decoded → <b>phase-flip in Block ${phaseError}</b>.`
+      : `Syndrome decoded → <span class="ok">00, no phase error</span> in any block.`;
+  }
+
+  if(step>=6){
+    if(phaseError){
+      blockFlash[phaseError].classList.add("show");
+      refs.zbadge[phaseError].classList.remove("show");
+      [0,1,2].forEach(i=> refs.qcircle[`${phaseError}-${i}`].classList.remove("flag-z"));
+    }
+    Object.values(refs.qcircle).forEach(c=>c.classList.remove("plus-state"));
+    Object.values(refs.had).forEach(h=>h.classList.remove("show"));
+  }
+  if(step===6){
+    cap.innerHTML = phaseError
+      ? `Correction applied: a <span class="ok">Z gate flips Block ${phaseError} back</span>, repairing phase alignment. <span class="ok">Phase round-trip complete.</span>`
+      : `Nothing to correct — all blocks phase-aligned. <span class="ok">Phase round-trip complete.</span>`;
+  }
+}
+</script>
+</body>
+</html>
