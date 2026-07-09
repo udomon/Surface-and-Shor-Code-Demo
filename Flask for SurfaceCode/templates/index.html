@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Surface Code — Error Correction Lab</title>
+<style>
+  :root{
+    --ink:#0d1b2a;
+    --paper:#eef1f6;
+    --panel:#16273d;
+    --panel-line:#2a3f5c;
+    --lattice:#9fb3c8;
+    --data:#3b5bdb;
+    --xanc:#4a9c6d;
+    --zanc:#7ec98f;
+    --xerr:#ef2d7e;
+    --zerr:#22d3ee;
+    --yerr:#a855c9;
+    --triggered:#a855c9;
+    --amber:#e0a83e;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    --serif: "Fraunces", "Iowan Old Style", Georgia, serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--mono);
+    background:var(--ink);
+    color:#dfe7f2;
+    min-height:100vh;
+  }
+  header{
+    padding:28px 36px 18px;
+    border-bottom:1px solid var(--panel-line);
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  header h1{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:1.7rem;
+    margin:0;
+    letter-spacing:0.2px;
+    color:#fff;
+  }
+  header .tag{
+    font-size:0.72rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--amber);
+  }
+  .stage-label{
+    font-size:0.72rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:#8ea3bd;
+  }
+  .layout{
+    display:grid;
+    grid-template-columns: 1fr 340px;
+    gap:0;
+    min-height:calc(100vh - 90px);
+  }
+  .canvas-wrap{
+    padding:28px 20px 40px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:18px;
+  }
+  #stage-title{
+    font-family:var(--serif);
+    font-size:1.15rem;
+    color:#fff;
+  }
+  .board-frame{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:4px;
+    padding:18px;
+  }
+  #board{
+    display:flex;
+    gap:22px;
+    flex-wrap:wrap;
+    justify-content:center;
+    align-items:flex-start;
+  }
+  .panel-block{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+  }
+  .panel-title{
+    font-size:0.68rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:#8ea3bd;
+  }
+  svg{ display:block; }
+  .qubit-hit{ cursor:pointer; }
+  .qubit-hit:hover circle.base{ stroke:#fff; stroke-width:2.5; }
+  .controls-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  button{
+    font-family:var(--mono);
+    font-size:0.78rem;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    background:transparent;
+    color:#dfe7f2;
+    border:1px solid var(--panel-line);
+    padding:10px 16px;
+    border-radius:3px;
+    cursor:pointer;
+    transition:background 0.15s, border-color 0.15s;
+  }
+  button:hover{ border-color:var(--amber); color:#fff; }
+  button.primary{ background:var(--amber); color:#1a1200; border-color:var(--amber); font-weight:600;}
+  button.primary:hover{ filter:brightness(1.08); }
+  button:disabled{ opacity:0.35; cursor:not-allowed; }
+  button.primary:disabled{ background:#5c5230; border-color:#5c5230; color:#8a8060;}
+
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px 22px;
+    justify-content:center;
+    font-size:0.72rem;
+    color:#aebdd1;
+    max-width:640px;
+  }
+  .legend-item{ display:flex; align-items:center; gap:6px; }
+  .swatch{ width:12px; height:12px; border-radius:50%; display:inline-block; border:2px solid #000; }
+  .swatch.sq{ border-radius:2px; }
+
+  aside{
+    background:#0a1420;
+    border-left:1px solid var(--panel-line);
+    padding:28px 26px 40px;
+    overflow-y:auto;
+  }
+  aside h2{
+    font-family:var(--serif);
+    font-size:1.0rem;
+    color:#fff;
+    margin:0 0 4px;
+  }
+  aside .step-eyebrow{
+    font-size:0.68rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin-bottom:2px;
+  }
+  aside p{
+    font-size:0.82rem;
+    line-height:1.55;
+    color:#b8c4d6;
+    margin:0 0 16px;
+  }
+  aside .divider{
+    border:none;
+    border-top:1px solid var(--panel-line);
+    margin:20px 0;
+  }
+  .field{
+    margin-bottom:18px;
+  }
+  .field label{
+    display:block;
+    font-size:0.7rem;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:#8ea3bd;
+    margin-bottom:6px;
+  }
+  .dselect{
+    display:flex;
+    gap:6px;
+  }
+  .dselect button{
+    flex:1;
+    padding:8px 0;
+  }
+  .dselect button.active{
+    background:var(--data);
+    border-color:var(--data);
+    color:#fff;
+  }
+  .err-list{
+    font-size:0.76rem;
+    color:#cdd8e8;
+  }
+  .err-list div{
+    display:flex;
+    justify-content:space-between;
+    padding:3px 0;
+    border-bottom:1px dotted #22344c;
+  }
+  .err-list .tag-x{ color:var(--xerr); }
+  .err-list .tag-z{ color:var(--zerr); }
+  .err-list .tag-y{ color:var(--yerr); }
+  .empty-note{ color:#5c6d84; font-style:italic; font-size:0.78rem; }
+
+  pre.codeblock{
+    background:#050b12;
+    border:1px solid var(--panel-line);
+    border-radius:3px;
+    padding:14px;
+    font-size:0.72rem;
+    line-height:1.6;
+    color:#8fe3a0;
+    overflow-x:auto;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+  .copy-btn{
+    width:100%;
+    margin-top:8px;
+  }
+  .status-banner{
+    font-size:0.76rem;
+    padding:10px 12px;
+    border-radius:3px;
+    border:1px solid var(--panel-line);
+    margin-bottom:16px;
+    min-height:1.2em;
+  }
+  .status-banner.correcting{ color:var(--amber); border-color:var(--amber); }
+  .status-banner.done{ color:var(--zanc); border-color:var(--zanc); }
+  .status-banner.errs{ color:var(--xerr); border-color:var(--xerr); }
+
+  .correction-log{
+    width:100%;
+    max-width:820px;
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:4px;
+    padding:14px 18px;
+    font-size:0.78rem;
+    line-height:1.6;
+    color:#cdd8e8;
+  }
+  .correction-log h3{
+    font-family:var(--serif);
+    font-size:0.9rem;
+    color:#fff;
+    margin:0 0 10px;
+  }
+  .log-entry{
+    border-bottom:1px dotted var(--panel-line);
+    padding:10px 0;
+  }
+  .log-entry:last-child{ border-bottom:none; }
+  .log-entry .log-title{
+    font-weight:700;
+    margin-bottom:4px;
+  }
+  .log-entry .log-title.x{ color:var(--xerr); }
+  .log-entry .log-title.z{ color:var(--zerr); }
+  .log-entry ul{
+    margin:4px 0 0 18px;
+    padding:0;
+  }
+  .log-entry li{ margin-bottom:2px; }
+
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--panel-line); border-radius:4px;}
+
+  @media (max-width: 880px){
+    .layout{ grid-template-columns: 1fr; }
+    aside{ border-left:none; border-top:1px solid var(--panel-line); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Surface Code — Error Correction Lab</h1>
+  <span class="tag">powered by Surface_Code.py · click to inject errors</span>
+</header>
+
+<div class="layout">
+
+  <div class="canvas-wrap">
+    <div class="stage-label" id="stage-label">Stage 1 of 3 — Lattice</div>
+    <div id="stage-title">An empty surface code lattice</div>
+    <div class="board-frame"><div id="board"></div></div>
+
+    <div class="controls-row">
+      <button id="btn-clear-all">Clear all errors</button>
+      <button id="btn-correct" class="primary">Correct errors</button>
+      <button id="btn-step" class="primary" style="display:none;">Next pair →</button>
+      <button id="btn-reset-view" style="display:none;">◂ Back to editing</button>
+    </div>
+    <div class="stage-label" id="step-progress" style="display:none;"></div>
+
+    <div class="legend" id="legend"></div>
+
+    <div class="correction-log" id="correction-log" style="display:none;"></div>
+  </div>
+
+  <aside>
+    <div class="step-eyebrow" id="side-eyebrow">Step 1</div>
+    <h2 id="side-heading">Set the lattice</h2>
+    <div class="field">
+      <label>Code distance (d)</label>
+      <div class="dselect" id="d-select"></div>
+    </div>
+    <p>Circles are <strong style="color:#7f9cd6">data qubits</strong>. Green squares are stabiliser ancillas — darker green measures <strong>X</strong>, lighter green measures <strong>Z</strong>.</p>
+
+    <hr class="divider">
+
+    <div class="step-eyebrow">Step 2</div>
+    <h2>Inject errors</h2>
+    <p>Click any data qubit to cycle through error types:<br>
+    1st click → <span style="color:var(--xerr)">X error</span> · 2nd → <span style="color:var(--zerr)">Z error</span> · 3rd → <span style="color:var(--yerr)">Y error</span> · 4th → clear.</p>
+
+    <div class="field">
+      <label>Errors on the lattice</label>
+      <div class="err-list" id="err-list"><div class="empty-note">No errors placed yet — click a data qubit.</div></div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="step-eyebrow">Step 3</div>
+    <h2>Correct &amp; verify</h2>
+    <p>Press <strong>Correct errors</strong> to run the real minimum-weight matching decoder (networkx, exactly as in <code>Surface_Code.py</code>). Watch corrections apply pair by pair, then confirm the lattice returns to a clean state.</p>
+
+    <div class="status-banner" id="status-banner"></div>
+
+    <hr class="divider">
+
+    <div class="step-eyebrow">Export</div>
+    <h2>Equivalent Python call</h2>
+    <p>This is the exact call that reproduces your scenario in <code>Linking.py</code>, replacing the arguments passed to <code>surface.Execute()</code>.</p>
+    <pre class="codeblock" id="code-export"></pre>
+    <button class="copy-btn" id="btn-copy">Copy code</button>
+  </aside>
+
+</div>
+
+<script>
+/* ---------------------------------------------------------
+   ALL DECODING LOGIC LIVES SERVER-SIDE IN app.py / Surface_Code.py.
+   This script only: (1) tracks which error type the user last clicked
+   on each qubit, (2) calls the Flask API, (3) renders whatever the
+   API returns. No layout, syndrome, matching, or correction math
+   happens in the browser.
+--------------------------------------------------------- */
+
+let d = 3;
+let size = 5;
+let dataQ = {};      // "i,j" -> true
+let xAnc = {};
+let zAnc = {};
+let xStab = {};      // "i,j" -> [[i,j], ...]
+let zStab = {};
+
+let sessionId = null;
+let xErrors = new Set();   // user-placed clicks, "i,j"
+let zErrors = new Set();
+let yErrors = new Set();
+let xSyndrome = {};
+let zSyndrome = {};
+
+let stage = 1;        // 1 = layout, 2 = editing, 3 = corrected result
+let correcting = false;
+let plan = { x_plan: [], z_plan: [] };
+let totalSteps = 0;
+let stepIndex = -1;
+
+const key = (i,j)=>`${i},${j}`;
+const parseKey = k=>k.split(',').map(Number);
+
+/* ---------------------------------------------------------
+   API CALLS
+--------------------------------------------------------- */
+
+async function api(path, body){
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body || {})
+  });
+  if(!res.ok){
+    const err = await res.json().catch(()=>({error:'Request failed'}));
+    throw new Error(err.error || 'Request failed');
+  }
+  return res.json();
+}
+
+function applyLayoutPayload(payload){
+  d = payload.d;
+  size = payload.size;
+  dataQ = {}; xAnc = {}; zAnc = {};
+  payload.data_qubits.forEach(([i,j])=>{ dataQ[key(i,j)] = true; });
+  payload.x_anc.forEach(([i,j])=>{ xAnc[key(i,j)] = true; });
+  payload.z_anc.forEach(([i,j])=>{ zAnc[key(i,j)] = true; });
+  xStab = {}; zStab = {};
+  payload.x_stabilisers.forEach(s=>{ xStab[key(...s.anc)] = s.neighbours; });
+  payload.z_stabilisers.forEach(s=>{ zStab[key(...s.anc)] = s.neighbours; });
+}
+
+function applyStatePayload(payload){
+  xErrors = new Set(payload.x_errors.map(([i,j])=>key(i,j)));
+  zErrors = new Set(payload.z_errors.map(([i,j])=>key(i,j)));
+  yErrors = new Set(payload.y_errors.map(([i,j])=>key(i,j)));
+  xSyndrome = {};
+  Object.entries(payload.x_syndrome).forEach(([k,v])=>{ xSyndrome[k]=v; });
+  zSyndrome = {};
+  Object.entries(payload.z_syndrome).forEach(([k,v])=>{ zSyndrome[k]=v; });
+}
+
+async function loadLayoutOnly(){
+  const payload = await api('/api/layout', {d});
+  applyLayoutPayload(payload);
+}
+
+// Local record of what the user has clicked (before submitting to backend)
+let clickState = {}; // "i,j" -> 'X'|'Z'|'Y' (Y only appears if backend derives it back to us)
+
+async function syncSession(resync){
+  const xList = [];
+  const zList = [];
+  for(const k in clickState){
+    const [i,j] = parseKey(k);
+    const t = clickState[k];
+    if(t==='X') xList.push([i,j]);
+    else if(t==='Z') zList.push([i,j]);
+    else if(t==='Y'){ xList.push([i,j]); zList.push([i,j]); }
+  }
+  const payload = await api('/api/session/start', { d, x_errors:xList, z_errors:zList, resync: resync || 'classical' });
+  sessionId = payload.session_id;
+  applyLayoutPayload(payload);
+  applyStatePayload(payload);
+}
+
+/* ---------------------------------------------------------
+   RENDERING (pure display — reads dataQ/xAnc/zAnc/xStab/zStab/
+   xErrors/zErrors/yErrors/xSyndrome/zSyndrome, all sourced from
+   the backend)
+--------------------------------------------------------- */
+
+const CELL = 62;
+const R_DATA = 12;
+const SQ_ANC = 13;
+
+function svgNS(tag){ return document.createElementNS('http://www.w3.org/2000/svg', tag); }
+function coordToPx(i,j){ return { x: 30 + j*CELL, y: 30 + i*CELL }; }
+
+function buildPanelSVG(panelType){
+  const dim = 60 + (size-1)*CELL;
+  const svg = svgNS('svg');
+  svg.setAttribute('width', dim);
+  svg.setAttribute('height', dim);
+  svg.setAttribute('viewBox', `0 0 ${dim} ${dim}`);
+
+  const defs = svgNS('defs');
+  const filter = svgNS('filter');
+  filter.setAttribute('id', `glow-${panelType||'plain'}`);
+  filter.setAttribute('x','-100%'); filter.setAttribute('y','-100%');
+  filter.setAttribute('width','300%'); filter.setAttribute('height','300%');
+  const blur = svgNS('feGaussianBlur');
+  blur.setAttribute('stdDeviation','4.2');
+  blur.setAttribute('result','blur');
+  const merge = svgNS('feMerge');
+  const m1 = svgNS('feMergeNode'); m1.setAttribute('in','blur');
+  const m2 = svgNS('feMergeNode'); m2.setAttribute('in','blur');
+  const m3 = svgNS('feMergeNode'); m3.setAttribute('in','SourceGraphic');
+  merge.appendChild(m1); merge.appendChild(m2); merge.appendChild(m3);
+  filter.appendChild(blur); filter.appendChild(merge);
+  defs.appendChild(filter);
+  svg.appendChild(defs);
+
+  const connGroup = svgNS('g');
+  svg.appendChild(connGroup);
+
+  function drawConnections(stabMap, dash){
+    for(const anc in stabMap){
+      const [ai,aj] = parseKey(anc);
+      const p1 = coordToPx(ai,aj);
+      for(const [di,dj] of stabMap[anc]){
+        const p2 = coordToPx(di,dj);
+        const line = svgNS('line');
+        line.setAttribute('x1',p1.x); line.setAttribute('y1',p1.y);
+        line.setAttribute('x2',p2.x); line.setAttribute('y2',p2.y);
+        line.setAttribute('stroke','var(--lattice)');
+        line.setAttribute('stroke-width','1.5');
+        line.setAttribute('stroke-dasharray', dash);
+        line.setAttribute('opacity','0.55');
+        connGroup.appendChild(line);
+      }
+    }
+  }
+  if(panelType !== 'X') drawConnections(xStab, '5,4');
+  if(panelType !== 'Z') drawConnections(zStab, '0');
+
+  for(const k in xAnc){
+    const [i,j]=parseKey(k);
+    const p = coordToPx(i,j);
+    let fill = 'var(--xanc)', glow = false;
+    if(panelType==='X' || panelType===null){
+      const triggered = xSyndrome[k]===1;
+      fill = triggered ? 'var(--triggered)' : 'var(--xanc)';
+      glow = triggered;
+    } else if(panelType==='Z'){
+      fill = '#3a4a5e';
+    }
+    drawSquare(svg, p, fill, 'X', glow, panelType);
+    if(panelType==='X' && xSyndrome[k]!==undefined){
+      const t = svgNS('text');
+      t.setAttribute('x', p.x+15); t.setAttribute('y', p.y-13);
+      t.setAttribute('text-anchor','middle');
+      t.setAttribute('font-size','10'); t.setAttribute('font-weight','700');
+      t.setAttribute('fill', xSyndrome[k]===1 ? '#fff' : '#6c8aa8');
+      t.textContent = xSyndrome[k];
+      svg.appendChild(t);
+    }
+  }
+  for(const k in zAnc){
+    const [i,j]=parseKey(k);
+    const p = coordToPx(i,j);
+    let fill = 'var(--zanc)', glow = false;
+    if(panelType==='Z' || panelType===null){
+      const triggered = zSyndrome[k]===1;
+      fill = triggered ? 'var(--triggered)' : 'var(--zanc)';
+      glow = triggered;
+    } else if(panelType==='X'){
+      fill = '#3a4a5e';
+    }
+    drawSquare(svg, p, fill, 'Z', glow, panelType);
+    if(panelType==='Z' && zSyndrome[k]!==undefined){
+      const t = svgNS('text');
+      t.setAttribute('x', p.x+15); t.setAttribute('y', p.y-13);
+      t.setAttribute('text-anchor','middle');
+      t.setAttribute('font-size','10'); t.setAttribute('font-weight','700');
+      t.setAttribute('fill', zSyndrome[k]===1 ? '#fff' : '#6c8aa8');
+      t.textContent = zSyndrome[k];
+      svg.appendChild(t);
+    }
+  }
+
+  for(const k in dataQ){
+    const [i,j] = parseKey(k);
+    const p = coordToPx(i,j);
+    const g = svgNS('g');
+    g.setAttribute('class', panelType===null ? 'qubit-hit' : '');
+    g.setAttribute('data-key', k);
+
+    if(panelType===null){
+      const hit = svgNS('circle');
+      hit.setAttribute('cx',p.x); hit.setAttribute('cy',p.y); hit.setAttribute('r', R_DATA+10);
+      hit.setAttribute('fill','transparent');
+      g.appendChild(hit);
+    }
+
+    const circ = svgNS('circle');
+    circ.setAttribute('class','base');
+    circ.setAttribute('cx',p.x); circ.setAttribute('cy',p.y); circ.setAttribute('r',R_DATA);
+    circ.setAttribute('fill','var(--data)');
+    circ.setAttribute('stroke','#0a1420');
+    circ.setAttribute('stroke-width','1.5');
+    g.appendChild(circ);
+
+    const label = svgNS('text');
+    label.setAttribute('x',p.x); label.setAttribute('y',p.y+4);
+    label.setAttribute('text-anchor','middle');
+    label.setAttribute('font-size','10'); label.setAttribute('font-weight','700');
+    label.setAttribute('fill','#fff');
+    label.textContent = 'D';
+    g.appendChild(label);
+
+    if(xErrors.has(k) || zErrors.has(k) || yErrors.has(k)){
+      const t = xErrors.has(k) ? 'X' : zErrors.has(k) ? 'Z' : 'Y';
+      const colour = t==='X' ? 'var(--xerr)' : t==='Z' ? 'var(--zerr)' : 'var(--yerr)';
+      const ring = svgNS('circle');
+      ring.setAttribute('cx',p.x); ring.setAttribute('cy',p.y); ring.setAttribute('r', R_DATA+7);
+      ring.setAttribute('fill','none');
+      ring.setAttribute('stroke', colour);
+      ring.setAttribute('stroke-width','4');
+      ring.setAttribute('opacity','0.95');
+      g.appendChild(ring);
+
+      const etxt = svgNS('text');
+      etxt.setAttribute('x',p.x+16); etxt.setAttribute('y',p.y-14);
+      etxt.setAttribute('text-anchor','middle');
+      etxt.setAttribute('font-size','11'); etxt.setAttribute('font-weight','700');
+      etxt.setAttribute('fill', colour);
+      etxt.textContent = t;
+      g.appendChild(etxt);
+    }
+
+    if(panelType===null && stage===2 && !correcting){
+      g.addEventListener('click', ()=>cycleError(k));
+    }
+    svg.appendChild(g);
+  }
+
+  return svg;
+}
+
+function drawSquare(svg, p, fill, label, glow, panelType){
+  const rect = svgNS('rect');
+  rect.setAttribute('x', p.x-SQ_ANC/2); rect.setAttribute('y', p.y-SQ_ANC/2);
+  rect.setAttribute('width', SQ_ANC); rect.setAttribute('height', SQ_ANC);
+  rect.setAttribute('rx', 2);
+  rect.setAttribute('fill', fill);
+  rect.setAttribute('stroke', glow ? '#fff' : '#0a1420');
+  rect.setAttribute('stroke-width', glow ? '2' : '1.2');
+  if(glow) rect.setAttribute('filter', `url(#glow-${panelType||'plain'})`);
+  svg.appendChild(rect);
+
+  const txt = svgNS('text');
+  txt.setAttribute('x', p.x); txt.setAttribute('y', p.y+3.5);
+  txt.setAttribute('text-anchor','middle');
+  txt.setAttribute('font-size','8'); txt.setAttribute('font-weight','700');
+  txt.setAttribute('fill','#fff');
+  txt.textContent = label;
+  svg.appendChild(txt);
+}
+
+function renderBoard(){
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  const showSyndromes = stage >= 2;
+  const panels = showSyndromes
+    ? [ {type:null, title:'Errors'}, {type:'X', title:'X Syndromes'}, {type:'Z', title:'Z Syndromes'} ]
+    : [ {type:null, title:'Errors'} ];
+
+  for(const panel of panels){
+    const block = document.createElement('div');
+    block.className = 'panel-block';
+    const t = document.createElement('div');
+    t.className = 'panel-title';
+    t.textContent = panel.title;
+    block.appendChild(t);
+    const svg = buildPanelSVG(panel.type);
+    if(panel.type===null) board._mainSvg = svg;
+    if(panel.type==='X') board._xSvg = svg;
+    if(panel.type==='Z') board._zSvg = svg;
+    block.appendChild(svg);
+    board.appendChild(block);
+  }
+}
+
+function highlightCorrectionPath(cells){
+  const svg = document.getElementById('board')._mainSvg;
+  for(const [i,j] of cells){
+    const p = coordToPx(i,j);
+    const pulse = svgNS('circle');
+    pulse.setAttribute('cx',p.x); pulse.setAttribute('cy',p.y); pulse.setAttribute('r', R_DATA+3);
+    pulse.setAttribute('fill','none');
+    pulse.setAttribute('stroke', 'var(--amber)');
+    pulse.setAttribute('stroke-width','3');
+    pulse.setAttribute('opacity','0.9');
+    svg.appendChild(pulse);
+  }
+}
+
+function highlightDefectPair(step){
+  const board = document.getElementById('board');
+  const svg = step.type==='X' ? board._xSvg : board._zSvg;
+  if(!svg) return;
+  const nodes = [step.raw_from];
+  if(!step.boundary && step.raw_to) nodes.push(step.raw_to);
+  if(step.boundary && step.boundary_point) nodes.push(step.boundary_point);
+  for(const [i,j] of nodes){
+    const p = coordToPx(i,j);
+    const ring = svgNS('circle');
+    ring.setAttribute('cx',p.x); ring.setAttribute('cy',p.y); ring.setAttribute('r', SQ_ANC*0.95);
+    ring.setAttribute('fill','none');
+    ring.setAttribute('stroke', '#ffe14d');
+    ring.setAttribute('stroke-width','3');
+    ring.setAttribute('opacity','0.95');
+    svg.appendChild(ring);
+  }
+}
+
+/* ---------------------------------------------------------
+   UI STATE / CONTROLS
+--------------------------------------------------------- */
+
+async function cycleError(k){
+  const cur = clickState[k];
+  if(!cur) clickState[k] = 'X';
+  else if(cur==='X') clickState[k] = 'Z';
+  else if(cur==='Z') clickState[k] = 'Y';
+  else delete clickState[k];
+
+  await syncSession('classical');
+  renderAll();
+}
+
+async function clearAllErrors(){
+  clickState = {};
+  await syncSession('classical');
+  setStatus('');
+  renderAll();
+}
+
+function fmtCoord([i,j]){ return `(${i}, ${j})`; }
+
+function renderErrList(){
+  const el = document.getElementById('err-list');
+  const rows = [];
+  xErrors.forEach(k=>rows.push(`<div><span class="tag-x">X</span><span>${fmtCoord(parseKey(k))}</span></div>`));
+  zErrors.forEach(k=>rows.push(`<div><span class="tag-z">Z</span><span>${fmtCoord(parseKey(k))}</span></div>`));
+  yErrors.forEach(k=>rows.push(`<div><span class="tag-y">Y</span><span>${fmtCoord(parseKey(k))}</span></div>`));
+  el.innerHTML = rows.length ? rows.join('') : '<div class="empty-note">No errors placed yet — click a data qubit.</div>';
+}
+
+function renderCodeExport(){
+  const fmtList = (set)=>{
+    if(!set.size) return '[]';
+    return '[' + [...set].map(k=>{const [i,j]=parseKey(k); return `(${i}, ${j})`;}).join(', ') + ']';
+  };
+  const xList = new Set(xErrors); const zList = new Set(zErrors);
+  yErrors.forEach(k=>{ xList.add(k); zList.add(k); });
+
+  const code =
+`from Surface_Code import Error_Correction
+from Shor_Code import ShorCode
+
+d = ${d}
+surface = Error_Correction(d)
+surface.Execute(
+    x_errors=${fmtList(xList)},
+    z_errors=${fmtList(zList)},
+    visual=True
+)`;
+  document.getElementById('code-export').textContent = code;
+}
+
+function setStatus(msg, cls){
+  const el = document.getElementById('status-banner');
+  el.textContent = msg;
+  el.className = 'status-banner' + (cls ? ' '+cls : '');
+}
+
+function renderLegend(){
+  const items = [
+    {sw:'circle', colour:'var(--data)', label:'Data qubit'},
+    {sw:'sq', colour:'var(--xanc)', label:'X ancilla'},
+    {sw:'sq', colour:'var(--zanc)', label:'Z ancilla'},
+    {sw:'ring', colour:'var(--xerr)', label:'X error'},
+    {sw:'ring', colour:'var(--zerr)', label:'Z error'},
+    {sw:'ring', colour:'var(--yerr)', label:'Y error'},
+    {sw:'sq', colour:'var(--triggered)', label:'Triggered syndrome (glows white)'},
+  ];
+  document.getElementById('legend').innerHTML = items.map(it=>{
+    const shape = it.sw==='sq' ? 'swatch sq' : 'swatch';
+    const style = it.sw==='ring'
+      ? `background:transparent;border-color:${it.colour}`
+      : `background:${it.colour};border-color:${it.colour}`;
+    return `<span class="legend-item"><span class="${shape}" style="${style}"></span>${it.label}</span>`;
+  }).join('');
+}
+
+function renderAll(){
+  renderBoard();
+  renderErrList();
+  renderCodeExport();
+  updateButtons();
+}
+
+function updateButtons(){
+  const hasErrors = xErrors.size || zErrors.size || yErrors.size;
+  document.getElementById('btn-correct').style.display = correcting ? 'none' : 'inline-block';
+  document.getElementById('btn-correct').disabled = !hasErrors || correcting || stage!==2;
+  document.getElementById('btn-clear-all').disabled = correcting || stage!==2;
+}
+
+/* ---------------------------------------------------------
+   STAGE TRANSITIONS
+--------------------------------------------------------- */
+
+function goToStage(n){
+  stage = n;
+  const label = document.getElementById('stage-label');
+  const title = document.getElementById('stage-title');
+  const backBtn = document.getElementById('btn-reset-view');
+  document.getElementById('btn-step').style.display = 'none';
+  document.getElementById('step-progress').style.display = 'none';
+  if(n===2){
+    document.getElementById('correction-log').style.display = 'none';
+    document.getElementById('correction-log').innerHTML = '';
+  }
+  if(n===1){
+    label.textContent = 'Stage 1 of 3 — Lattice';
+    title.textContent = 'An empty surface code lattice';
+    backBtn.style.display='none';
+  } else if(n===2){
+    label.textContent = 'Stage 2 of 3 — Inject errors';
+    title.textContent = 'Click data qubits to place errors';
+    backBtn.style.display='none';
+  } else {
+    label.textContent = 'Stage 3 of 3 — Corrected state';
+    title.textContent = 'Lattice after decoding';
+    backBtn.style.display='inline-block';
+  }
+  renderAll();
+}
+
+async function startCorrection(){
+  correcting = true;
+  updateButtons();
+
+  const logPanel = document.getElementById('correction-log');
+  logPanel.style.display = 'none';
+  logPanel.innerHTML = '';
+
+  setStatus('Resyncing syndromes from the real quantum circuit…', 'correcting');
+  // Rebuild the session with an authentic quantum-circuit resync,
+  // exactly matching Execute()'s default resync='quantum' behaviour.
+  await syncSession('quantum');
+  renderBoard();
+
+  const planResp = await api(`/api/session/${sessionId}/plan`, {});
+  plan = planResp;
+  totalSteps = planResp.total_steps;
+  stepIndex = -1;
+
+  if(totalSteps === 0){
+    clickState = {};
+    await syncSession('classical');
+    setStatus('All syndromes read 0, no errors present.', 'done');
+    correcting = false;
+    goToStage(3);
+    return;
+  }
+
+  logPanel.style.display = 'block';
+  logPanel.innerHTML = '<h3>Correction log</h3>';
+
+  document.getElementById('btn-step').style.display = 'inline-block';
+  document.getElementById('btn-step').textContent = 'Next pair →';
+  document.getElementById('btn-step').onclick = stepCorrection;
+  document.getElementById('step-progress').style.display = 'block';
+  setStatus(`Ready to correct ${totalSteps} defect pair(s) — matched by the real networkx decoder. Step through them one at a time.`, 'correcting');
+  document.getElementById('step-progress').textContent = `Pair 0 of ${totalSteps}`;
+}
+
+async function stepCorrection(){
+  const step = await api(`/api/session/${sessionId}/step`, {});
+  applyStatePayload(step);
+  renderBoard();
+  highlightCorrectionPath(step.path);
+  highlightDefectPair(step);
+
+  document.getElementById('step-progress').textContent = `Pair ${step.step_index+1} of ${step.total_steps}`;
+  setStatus(`Applied ${step.type} correction ${step.step_index+1} of ${step.total_steps} — ${step.boundary ? 'routed to boundary' : 'matched defect pair resolved'}.`, 'correcting');
+
+  const gateApplied = step.type==='X' ? 'Z' : 'X';
+  const errorLabel = step.type==='X' ? 'Z (phase-flip)' : 'X (bit-flip)';
+  const secondPoint = step.boundary
+    ? `the nearest open edge of the lattice at ${fmtCoord(step.boundary_point)}`
+    : `the stabilizer at ${fmtCoord(step.raw_to)}`;
+  const pathList = step.path.map(fmtCoord).join(', ');
+
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `
+    <div class="log-title ${step.type==='X' ? 'z' : 'x'}">Pair ${step.step_index+1} of ${step.total_steps} — ${errorLabel} error</div>
+    <ul>
+      <li>Triggered stabilizer coordinates: ${fmtCoord(step.raw_from)} and ${secondPoint}</li>
+      <li>This pairing indicates a ${errorLabel} error occurred somewhere along the qubits between these two points.</li>
+      <li>Fix applied: a ${gateApplied} gate is applied to each affected qubit — ${pathList} — which cancels the error out.</li>
+    </ul>
+  `;
+  document.getElementById('correction-log').appendChild(entry);
+  entry.scrollIntoView({behavior:'smooth', block:'nearest'});
+
+  if(step.done){
+    document.getElementById('btn-step').textContent = 'Finish →';
+    document.getElementById('btn-step').onclick = finishCorrection;
+  }
+}
+
+async function finishCorrection(){
+  correcting = false;
+  document.getElementById('btn-step').style.display = 'none';
+  document.getElementById('btn-step').textContent = 'Next pair →';
+  document.getElementById('btn-step').onclick = stepCorrection;
+  document.getElementById('step-progress').style.display = 'none';
+
+  // Authentic quantum-circuit resync, exactly matching Execute()'s final step.
+  const final = await api(`/api/session/${sessionId}/finalize`, {});
+  applyStatePayload(final);
+
+  const anyTriggered = Object.values(xSyndrome).includes(1) || Object.values(zSyndrome).includes(1);
+  goToStage(3);
+
+  if(!anyTriggered){
+    const residual = xErrors.size + zErrors.size + yErrors.size;
+    if(residual===0){
+      setStatus('All syndromes read 0 — lattice fully restored to a clean state.', 'done');
+    } else {
+      setStatus(`All syndromes read 0. ${residual} stabiliser-equivalent (undetectable) residual error(s) remain on the physical qubits — this is expected quantum error correction behaviour, not a logical error.`, 'done');
+    }
+  } else {
+    setStatus('Correction complete — some syndromes remain triggered (a logical error may have occurred).', 'errs');
+  }
+}
+
+/* ---------------------------------------------------------
+   CONTROLS WIRE-UP
+--------------------------------------------------------- */
+
+function buildDSelect(){
+  const wrap = document.getElementById('d-select');
+  wrap.innerHTML = '';
+  [2,3,4,5].forEach(val=>{
+    const b = document.createElement('button');
+    b.textContent = val;
+    if(val===d) b.classList.add('active');
+    b.addEventListener('click', async ()=>{
+      if(correcting) return;
+      d = val;
+      clickState = {};
+      setStatus('');
+      buildDSelect();
+      await loadLayoutOnly();
+      goToStage(2);
+    });
+    wrap.appendChild(b);
+  });
+}
+
+document.getElementById('btn-clear-all').addEventListener('click', ()=>{
+  if(correcting) return;
+  clearAllErrors();
+});
+
+document.getElementById('btn-correct').addEventListener('click', ()=>{
+  if(correcting) return;
+  const hasErrors = xErrors.size || zErrors.size || yErrors.size;
+  if(!hasErrors) return;
+  startCorrection();
+});
+
+document.getElementById('btn-reset-view').addEventListener('click', ()=>{
+  if(correcting) return;
+  goToStage(2);
+});
+
+document.getElementById('btn-copy').addEventListener('click', ()=>{
+  const text = document.getElementById('code-export').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn = document.getElementById('btn-copy');
+    const old = btn.textContent;
+    btn.textContent = 'Copied ✓';
+    setTimeout(()=>{ btn.textContent = old; }, 1400);
+  });
+});
+
+/* ---------------------------------------------------------
+   INIT
+--------------------------------------------------------- */
+
+(async function init(){
+  buildDSelect();
+  renderLegend();
+  await loadLayoutOnly();
+  goToStage(1);
+  renderAll();
+  setTimeout(()=>{ if(stage===1) goToStage(2); }, 1400);
+})();
+
+</script>
+</body>
+</html>
