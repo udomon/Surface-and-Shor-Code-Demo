@@ -20,23 +20,7 @@ Dependencies:
 - networkx
 - matplotlib
 
-Surface-and-Shor-Code-Demo/
-├── Shor_Code.py
-├── MQ_Shor_Code.py
-├── Surface_Code.py
-├── MQ_Surface_Code.py
-├── Flask_ShorCode/
-│   ├── app.py
-│   └── templates/index.html
-└── Flask_SurfaceCode/
-    ├── app.py
-    └── templates/index.html
-
-To run the visualizers, in the terminal run python app.py for the respecite demos
-
-Port for Shor code demo: http://127.0.0.1:5001
-
-Port for Surface code demo: http://127.0.0.1:5000
+To run a visualiser, go into its folder and run python app.py, then open http://127.0.0.1:5000. Both demos use port 5000 so only run one at a time.
 
 
 
