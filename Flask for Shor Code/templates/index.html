@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shor Code — 9-Qubit Error Correction Visualizer</title>
+<title>Shor Code: 9-Qubit Error Correction Visualiser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -189,8 +189,8 @@
 <div class="app">
   <header>
     <div class="eyebrow">Qiskit · ShorCode</div>
-    <h1>Shor Code — 9-Qubit Error Correction</h1>
-    <div class="sub">Click a qubit with a tool selected to plant a physical error — place an X error, a Z error, or both at once — then press Run to walk through the full correction: bit-flip (X) errors are caught first by comparing individual qubits per-block, then phase-flip (Z) errors are caught by comparing whole blocks in the Hadamard basis. Both corrections play back to back, no reset needed in between.</div>
+    <h1>Shor Code: 9-Qubit Error Correction</h1>
+    <div class="sub">Pick a tool and click a qubit to place an X error, a Z error or both, then press Run. Bit-flip (X) errors are found first by comparing the qubits in each block, then phase-flip (Z) errors are found by comparing whole blocks in the Hadamard basis.</div>
   </header>
 
   <div class="toolbar">
@@ -226,7 +226,7 @@
 
   <div class="console">
     <div class="console-header"><span>Syndrome Console</span><span id="stepIndicator">idle</span></div>
-    <div class="caption" id="caption">Pick a tool above and click a qubit to place an X error, a Z error, or both, then press Run to watch the bit-flip correction followed immediately by the phase-flip correction — no reset required in between.</div>
+    <div class="caption" id="caption">Pick a tool and click a qubit to place an error, then press Run to see the bit-flip correction followed by the phase-flip correction.</div>
     <div class="ledrow" id="ledrow"></div>
   </div>
 
@@ -246,9 +246,9 @@
   </div>
 
   <footer>
-    Maps to <b>Shor_Code.py</b>: Block 1/2/3 → registers <b>XQ1 / XQ2 / XQ3</b>, bit-flip ancillas → <b>XA1 / XA2 / XA3</b>,
-    phase ancillas → <b>ZA</b>. In the phase-flip check, Block 1 plays the role of the "middle" qubit (wired to both ancillas),
-    same as qubit 1 does in each block's own bit-flip check — the block-level circuit is a scaled-up copy of the single-block one.
+    How this maps to <b>Shor_Code.py</b>: Blocks 1/2/3 are registers <b>XQ1 / XQ2 / XQ3</b>, the bit-flip ancillas are <b>XA1 / XA2 / XA3</b>,
+    and the phase ancillas are <b>ZA</b>. In the phase-flip check, Block 1 plays the role of the "middle" qubit (wired to both ancillas),
+    the same way qubit 1 does in each block's bit-flip check, so the block-level circuit is just a bigger version of the single-block one.
   </footer>
 </div>
 
@@ -286,7 +286,7 @@ const refs = { qcircle:{}, qlabel:{}, xbadge:{}, zbadge:{}, had:{}, ancBit:{}, a
   blockLabel.textContent = `BLOCK ${b}  ·  XQ${b}`;
   layerQubits.appendChild(blockLabel);
 
-  // Z badge (block-level phase error flag) — sits below the block label, clear of it
+  // Z badge for a block-level phase error, placed below the block label
   const zg = el("g", {}, "z-badge");
   const zc = el("circle", {cx:cx, cy:60, r:9});
   const zt = el("text", {x:cx, y:61});
@@ -340,7 +340,7 @@ const refs = { qcircle:{}, qlabel:{}, xbadge:{}, zbadge:{}, had:{}, ancBit:{}, a
     lab.textContent = `XA${b}[${a}]`;
     const val = el("text", {x:x, y:ANC_Y}, "anc-value");
     layerAncillas.appendChild(circ);
-    // NOTE: label intentionally not appended to the DOM — it overlapped the CX arrows.
+    // label not added because it overlapped the CX arrows
     // (ref kept so later .classList calls on refs.ancBitLabel[...] remain harmless no-ops)
     layerAncillas.appendChild(val);
     refs.ancBit[`${b}-${a}`] = circ;
@@ -379,7 +379,7 @@ const phaseAncX = { 0: (blockCX[1]+blockCX[2])/2, 1: (blockCX[2]+blockCX[3])/2 }
   lab.textContent = `ZA[${a}]`;
   const val = el("text", {x:x, y:PHASE_ANC_Y}, "anc-value");
   layerAncillas.appendChild(circ);
-  // NOTE: label intentionally not appended to the DOM — it overlapped the CX arrows.
+  // label not added because it overlapped the CX arrows
   layerAncillas.appendChild(val);
   refs.ancZ[a] = circ; refs.ancZLabel[a] = lab; refs.ancZValue[a] = val;
 });
@@ -419,9 +419,6 @@ const blockFlash = {};
   blockFlash[b] = ring;
 });
 
-// Keep all your layout setup (NS, el, blockCX, refs, etc.) exactly as they are.
-// ... (Your layout and DOM element generation remains identical above here) ...
-
 // ---------- state ----------
 let tool = "select";
 let bitError = null;   // {block, idx}
@@ -432,7 +429,7 @@ let playTimer = null;
 
 const BIT_STEPS = 7;   // 0..6
 const PHASE_STEPS = 7; // 0..6
-const TOTAL_STEPS = BIT_STEPS + PHASE_STEPS; // 0..13 — bit-flip stage then phase-flip stage, back to back
+const TOTAL_STEPS = BIT_STEPS + PHASE_STEPS; // 0..13, bit-flip stage then phase-flip stage
 let localStep = 0; // step within the current stage (bit-flip or phase-flip), set by renderStep()
 
 // bit position -> ancilla pattern (a0,a1)
@@ -490,7 +487,7 @@ function renderIdle(){
     [0,1,2].forEach(i=> refs.qcircle[`${phaseError}-${i}`].classList.add("flag-z"));
   }
   document.getElementById("caption").innerHTML =
-    "Pick a tool above and click a qubit to place an X error, a Z error, or both, then press Run — or just press Run to watch a clean round-trip through the code.";
+    "Pick a tool and click a qubit to place an error, then press Run. You can also press Run with no errors.";
   document.getElementById("stepIndicator").textContent = "idle";
   document.getElementById("ledrow").innerHTML = "";
   document.getElementById("progressFill").style.width = "0%";
@@ -521,10 +518,10 @@ async function startRun(){
   
   // Lock the run button while fetching
   document.getElementById("runBtn").disabled = true;
-  document.getElementById("caption").innerHTML = "Sending circuit blueprint to <b>Python Flask Server</b> & compiling Qiskit simulation...";
+  document.getElementById("caption").innerHTML = "Running the Qiskit simulation...";
 
   try {
-      // Send selected bit and phase coordinates to your app.py endpoint
+      // send the chosen errors to app.py
       const response = await fetch('/run_circuit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -537,7 +534,7 @@ async function startRun(){
       const resData = await response.json();
       
       if (resData.status === "success") {
-          // Print backend measurement counts directly into your browser debug console
+          // print the measurement results to the console
           console.log("=== Qiskit Circuit Run Success ===");
           console.log("Probabilities:", resData.simulation_results);
           
@@ -630,7 +627,7 @@ function renderBitFlipStep(){
   if(step===1){
     cap.innerHTML = bitError
       ? `Noise strikes: an <b>X error</b> lands on <b>XQ${bitError.block}[${bitError.idx}]</b>.`
-      : "No bit-flip error placed — click a qubit with the Bit-Flip tool before running, or continue to see a clean syndrome.";
+      : "No bit-flip error placed, so the syndrome will be clean.";
   }
   if(step>=2){
     [1,2,3].forEach(b=>{ refs.cxLinesA[b].forEach(l=>l.classList.add("show")); });
@@ -640,7 +637,7 @@ function renderBitFlipStep(){
     });
   }
   if(step===2){
-    cap.innerHTML = "Step 1 — parity check <b>A</b>: qubit 0 and qubit 1 of each block are compared into ancilla <b>XA[0]</b>.";
+    cap.innerHTML = "Step 1: parity check <b>A</b> compares qubit 0 and qubit 1 of each block using ancilla <b>XA[0]</b>.";
   }
   if(step>=3){
     [1,2,3].forEach(b=>{ refs.cxLinesB[b].forEach(l=>l.classList.add("show")); });
@@ -650,7 +647,7 @@ function renderBitFlipStep(){
     });
   }
   if(step===3){
-    cap.innerHTML = "Step 2 — parity check <b>B</b>: qubit 1 and qubit 2 of each block are compared into ancilla <b>XA[1]</b>.";
+    cap.innerHTML = "Step 2: parity check <b>B</b> compares qubit 1 and qubit 2 of each block using ancilla <b>XA[1]</b>.";
   }
 
   if(step>=4){
@@ -682,7 +679,7 @@ function renderBitFlipStep(){
       const {g,t,r} = refs.blockMsg[b];
       g.classList.add("show");
       if(idx===null){
-        t.textContent = `Block ${b}: syndrome 00 — no error`;
+        t.textContent = `Block ${b}: syndrome 00, no error`;
         t.setAttribute("fill","var(--green)");
         r.setAttribute("stroke","#2E5E48");
       } else {
@@ -694,8 +691,8 @@ function renderBitFlipStep(){
   }
   if(step===5){
     cap.innerHTML = bitError
-      ? `Syndrome decoded → <b>bit-flip error on XQ${bitError.block}[${bitError.idx}]</b>. The other two blocks report a clean 00 syndrome.`
-      : `Syndrome decoded → all three blocks report <span class="ok">00, no error</span>.`;
+      ? `The syndrome shows a <b>bit-flip error on XQ${bitError.block}[${bitError.idx}]</b>. The other two blocks read 00.`
+      : `All three blocks read <span class="ok">00, no error</span>.`;
   }
 
   if(step>=6){
@@ -709,7 +706,7 @@ function renderBitFlipStep(){
   if(step===6){
     cap.innerHTML = bitError
       ? `Correction applied: an <span class="ok">X gate flips XQ${bitError.block}[${bitError.idx}] back</span>, restoring the encoded state.`
-      : `Nothing to correct — the block was already clean. <span class="ok">Bit-flip round-trip complete.</span>`;
+      : `No bit-flip to correct. <span class="ok">Bit-flip check done.</span>`;
   }
 }
 
@@ -727,7 +724,7 @@ function renderPhaseFlipStep(){
     Object.values(refs.had).forEach(h=>h.classList.add("show"));
   }
   if(step===0){
-    cap.innerHTML = "<span class='ok'>Bit-flip correction complete.</span> Now for the phase-flip check — Hadamard gates rotate every physical qubit into the <b>±</b> basis, where a phase-flip behaves just like a bit-flip.";
+    cap.innerHTML = "<span class='ok'>Bit-flip correction done.</span> Next is the phase-flip check. Hadamard gates put every qubit into the <b>±</b> basis, where a phase-flip acts like a bit-flip.";
   }
 
   if(step>=1){
@@ -741,8 +738,8 @@ function renderPhaseFlipStep(){
   }
   if(step===1){
     cap.innerHTML = phaseError
-      ? `A phase-flip lands on <b>Block ${phaseError}</b> — in this basis its parity reads <b>|−⟩</b> instead of <b>|+⟩</b>.`
-      : "No phase-flip error placed — click any qubit in a block with the Phase-Flip tool before running, or continue for a clean round-trip.";
+      ? `There is a phase-flip on <b>Block ${phaseError}</b>, so in this basis its parity reads <b>|−⟩</b> instead of <b>|+⟩</b>.`
+      : "No phase-flip error placed, so the syndrome will be clean.";
   }
 
   if(step>=2){
@@ -752,7 +749,7 @@ function renderPhaseFlipStep(){
     refs.ancZLabel[0].classList.add("show");
   }
   if(step===2){
-    cap.innerHTML = "Step 1 — <b>Block 1</b> and <b>Block 2</b>'s combined parity feeds ancilla <b>ZA[0]</b>.";
+    cap.innerHTML = "Step 1: the parity of <b>Block 1</b> and <b>Block 2</b> is measured with ancilla <b>ZA[0]</b>.";
   }
 
   if(step>=3){
@@ -762,7 +759,7 @@ function renderPhaseFlipStep(){
     refs.ancZLabel[1].classList.add("show");
   }
   if(step===3){
-    cap.innerHTML = "Step 2 — <b>Block 1</b> and <b>Block 3</b>'s combined parity feeds ancilla <b>ZA[1]</b>. Block 1 touches both ancillas, exactly like the middle qubit inside each block's own bit-flip check.";
+    cap.innerHTML = "Step 2: the parity of <b>Block 1</b> and <b>Block 3</b> is measured with ancilla <b>ZA[1]</b>. Block 1 is connected to both ancillas, like the middle qubit in each block's bit-flip check.";
   }
 
   let z0=0, z1=0;
@@ -787,17 +784,17 @@ function renderPhaseFlipStep(){
     const {g,t} = refs.phaseMsg;
     g.classList.add("show");
     if(!phaseError){
-      t.textContent = "Syndrome 00 — no phase-flip error";
+      t.textContent = "Syndrome 00, no phase-flip error";
       t.setAttribute("fill","var(--green)");
     } else {
-      t.textContent = `Syndrome ${z0}${z1} → phase-flip in Block ${phaseError}`;
+      t.textContent = `Syndrome ${z0}${z1}: phase-flip in Block ${phaseError}`;
       t.setAttribute("fill","var(--magenta)");
     }
   }
   if(step===5){
     cap.innerHTML = phaseError
-      ? `Syndrome decoded → <b>phase-flip in Block ${phaseError}</b>.`
-      : `Syndrome decoded → <span class="ok">00, no phase error</span> in any block.`;
+      ? `The syndrome shows a <b>phase-flip in Block ${phaseError}</b>.`
+      : `The syndrome reads <span class="ok">00, no phase error</span> in any block.`;
   }
 
   if(step>=6){
@@ -811,8 +808,8 @@ function renderPhaseFlipStep(){
   }
   if(step===6){
     cap.innerHTML = phaseError
-      ? `Correction applied: a <span class="ok">Z gate flips Block ${phaseError} back</span>, repairing phase alignment. <span class="ok">Phase round-trip complete.</span>`
-      : `Nothing to correct — all blocks phase-aligned. <span class="ok">Phase round-trip complete.</span>`;
+      ? `Correction applied: a <span class="ok">Z gate flips Block ${phaseError} back</span>, fixing the phase. <span class="ok">Phase-flip check done.</span>`
+      : `No phase-flip to correct. <span class="ok">Phase-flip check done.</span>`;
   }
 }
 </script>

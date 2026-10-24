@@ -518,7 +518,7 @@ class Error_Injection(Surface_Code_Graph):
             if syndrome_type == 'X' and coord in self.x_syndrome:
                 colour = 'purple' if self.x_syndrome[coord] == 1 else 'yellowgreen' #change colour depending on if syndrome triggered
             elif syndrome_type is None:
-                colour = 'yellowgreen'   # plain layout view — normal ancilla colour
+                colour = 'yellowgreen'   #normal ancilla colour for the plain layout
             else:
                 colour = 'white'
             
@@ -539,7 +539,7 @@ class Error_Injection(Surface_Code_Graph):
             if syndrome_type == 'Z' and coord in self.z_syndrome:
                 colour = 'purple' if self.z_syndrome[coord] == 1 else 'lightgreen' #change colour depending on if syndrome triggered
             elif syndrome_type is None:
-                colour = 'lightgreen'   # plain layout view — normal ancilla colour
+                colour = 'lightgreen'   #normal ancilla colour for the plain layout
             else:
                 colour = 'white'
             

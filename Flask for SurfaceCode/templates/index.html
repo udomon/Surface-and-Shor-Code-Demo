@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Surface Code — Error Correction Lab</title>
+<title>Surface Code Error Correction</title>
 <style>
   :root{
     --ink:#0d1b2a;
@@ -285,22 +285,22 @@
 <body>
 
 <header>
-  <h1>Surface Code — Error Correction Lab</h1>
-  <span class="tag">powered by Surface_Code.py · click to inject errors</span>
+  <h1>Surface Code Error Correction</h1>
+  <span class="tag">uses Surface_Code.py, click qubits to add errors</span>
 </header>
 
 <div class="layout">
 
   <div class="canvas-wrap">
-    <div class="stage-label" id="stage-label">Stage 1 of 3 — Lattice</div>
+    <div class="stage-label" id="stage-label">Stage 1 of 3: Lattice</div>
     <div id="stage-title">An empty surface code lattice</div>
     <div class="board-frame"><div id="board"></div></div>
 
     <div class="controls-row">
       <button id="btn-clear-all">Clear all errors</button>
       <button id="btn-correct" class="primary">Correct errors</button>
-      <button id="btn-step" class="primary" style="display:none;">Next pair →</button>
-      <button id="btn-reset-view" style="display:none;">◂ Back to editing</button>
+      <button id="btn-step" class="primary" style="display:none;">Next pair</button>
+      <button id="btn-reset-view" style="display:none;">Back to editing</button>
     </div>
     <div class="stage-label" id="step-progress" style="display:none;"></div>
 
@@ -316,25 +316,25 @@
       <label>Code distance (d)</label>
       <div class="dselect" id="d-select"></div>
     </div>
-    <p>Circles are <strong style="color:#7f9cd6">data qubits</strong>. Green squares are stabiliser ancillas — darker green measures <strong>X</strong>, lighter green measures <strong>Z</strong>.</p>
+    <p>Circles are <strong style="color:#7f9cd6">data qubits</strong>. Green squares are stabiliser ancillas: darker green measures <strong>X</strong>, lighter green measures <strong>Z</strong>.</p>
 
     <hr class="divider">
 
     <div class="step-eyebrow">Step 2</div>
     <h2>Inject errors</h2>
     <p>Click any data qubit to cycle through error types:<br>
-    1st click → <span style="color:var(--xerr)">X error</span> · 2nd → <span style="color:var(--zerr)">Z error</span> · 3rd → <span style="color:var(--yerr)">Y error</span> · 4th → clear.</p>
+    1st click: <span style="color:var(--xerr)">X error</span>, 2nd: <span style="color:var(--zerr)">Z error</span>, 3rd: <span style="color:var(--yerr)">Y error</span>, 4th: clear.</p>
 
     <div class="field">
       <label>Errors on the lattice</label>
-      <div class="err-list" id="err-list"><div class="empty-note">No errors placed yet — click a data qubit.</div></div>
+      <div class="err-list" id="err-list"><div class="empty-note">No errors yet. Click a data qubit to add one.</div></div>
     </div>
 
     <hr class="divider">
 
     <div class="step-eyebrow">Step 3</div>
     <h2>Correct &amp; verify</h2>
-    <p>Press <strong>Correct errors</strong> to run the real minimum-weight matching decoder (networkx, exactly as in <code>Surface_Code.py</code>). Watch corrections apply pair by pair, then confirm the lattice returns to a clean state.</p>
+    <p>Press <strong>Correct errors</strong> to run the minimum-weight matching decoder from <code>Surface_Code.py</code>. The corrections are applied one pair at a time.</p>
 
     <div class="status-banner" id="status-banner"></div>
 
@@ -342,7 +342,7 @@
 
     <div class="step-eyebrow">Export</div>
     <h2>Equivalent Python call</h2>
-    <p>This is the exact call that reproduces your scenario in <code>Linking.py</code>, replacing the arguments passed to <code>surface.Execute()</code>.</p>
+    <p>Put this in <code>Linking.py</code> in place of the current <code>surface.Execute()</code> call to run the same setup in Python.</p>
     <pre class="codeblock" id="code-export"></pre>
     <button class="copy-btn" id="btn-copy">Copy code</button>
   </aside>
@@ -351,11 +351,9 @@
 
 <script>
 /* ---------------------------------------------------------
-   ALL DECODING LOGIC LIVES SERVER-SIDE IN app.py / Surface_Code.py.
-   This script only: (1) tracks which error type the user last clicked
-   on each qubit, (2) calls the Flask API, (3) renders whatever the
-   API returns. No layout, syndrome, matching, or correction math
-   happens in the browser.
+   All the decoding is done in app.py / Surface_Code.py. This script
+   only keeps track of the errors clicked, calls the Flask API and
+   draws what it sends back.
 --------------------------------------------------------- */
 
 let d = 3;
@@ -446,7 +444,7 @@ async function syncSession(resync){
 }
 
 /* ---------------------------------------------------------
-   RENDERING (pure display — reads dataQ/xAnc/zAnc/xStab/zStab/
+   RENDERING (display only, reads dataQ/xAnc/zAnc/xStab/zStab/
    xErrors/zErrors/yErrors/xSyndrome/zSyndrome, all sourced from
    the backend)
 --------------------------------------------------------- */
@@ -717,7 +715,7 @@ function renderErrList(){
   xErrors.forEach(k=>rows.push(`<div><span class="tag-x">X</span><span>${fmtCoord(parseKey(k))}</span></div>`));
   zErrors.forEach(k=>rows.push(`<div><span class="tag-z">Z</span><span>${fmtCoord(parseKey(k))}</span></div>`));
   yErrors.forEach(k=>rows.push(`<div><span class="tag-y">Y</span><span>${fmtCoord(parseKey(k))}</span></div>`));
-  el.innerHTML = rows.length ? rows.join('') : '<div class="empty-note">No errors placed yet — click a data qubit.</div>';
+  el.innerHTML = rows.length ? rows.join('') : '<div class="empty-note">No errors yet. Click a data qubit to add one.</div>';
 }
 
 function renderCodeExport(){
@@ -797,15 +795,15 @@ function goToStage(n){
     document.getElementById('correction-log').innerHTML = '';
   }
   if(n===1){
-    label.textContent = 'Stage 1 of 3 — Lattice';
+    label.textContent = 'Stage 1 of 3: Lattice';
     title.textContent = 'An empty surface code lattice';
     backBtn.style.display='none';
   } else if(n===2){
-    label.textContent = 'Stage 2 of 3 — Inject errors';
+    label.textContent = 'Stage 2 of 3: Add errors';
     title.textContent = 'Click data qubits to place errors';
     backBtn.style.display='none';
   } else {
-    label.textContent = 'Stage 3 of 3 — Corrected state';
+    label.textContent = 'Stage 3 of 3: Corrected';
     title.textContent = 'Lattice after decoding';
     backBtn.style.display='inline-block';
   }
@@ -821,8 +819,8 @@ async function startCorrection(){
   logPanel.innerHTML = '';
 
   setStatus('Resyncing syndromes from the real quantum circuit…', 'correcting');
-  // Rebuild the session with an authentic quantum-circuit resync,
-  // exactly matching Execute()'s default resync='quantum' behaviour.
+  // rebuild the session using the quantum circuit for the syndromes,
+  // same as Execute() with the default resync='quantum'
   await syncSession('quantum');
   renderBoard();
 
@@ -844,10 +842,10 @@ async function startCorrection(){
   logPanel.innerHTML = '<h3>Correction log</h3>';
 
   document.getElementById('btn-step').style.display = 'inline-block';
-  document.getElementById('btn-step').textContent = 'Next pair →';
+  document.getElementById('btn-step').textContent = 'Next pair';
   document.getElementById('btn-step').onclick = stepCorrection;
   document.getElementById('step-progress').style.display = 'block';
-  setStatus(`Ready to correct ${totalSteps} defect pair(s) — matched by the real networkx decoder. Step through them one at a time.`, 'correcting');
+  setStatus(`${totalSteps} pair(s) to correct, press Next pair to go through them one at a time.`, 'correcting');
   document.getElementById('step-progress').textContent = `Pair 0 of ${totalSteps}`;
 }
 
@@ -859,7 +857,7 @@ async function stepCorrection(){
   highlightDefectPair(step);
 
   document.getElementById('step-progress').textContent = `Pair ${step.step_index+1} of ${step.total_steps}`;
-  setStatus(`Applied ${step.type} correction ${step.step_index+1} of ${step.total_steps} — ${step.boundary ? 'routed to boundary' : 'matched defect pair resolved'}.`, 'correcting');
+  setStatus(`Applied ${step.type} correction ${step.step_index+1} of ${step.total_steps} (${step.boundary ? 'matched to the boundary' : 'pair fixed'}).`, 'correcting');
 
   const gateApplied = step.type==='X' ? 'Z' : 'X';
   const errorLabel = step.type==='X' ? 'Z (phase-flip)' : 'X (bit-flip)';
@@ -871,18 +869,18 @@ async function stepCorrection(){
   const entry = document.createElement('div');
   entry.className = 'log-entry';
   entry.innerHTML = `
-    <div class="log-title ${step.type==='X' ? 'z' : 'x'}">Pair ${step.step_index+1} of ${step.total_steps} — ${errorLabel} error</div>
+    <div class="log-title ${step.type==='X' ? 'z' : 'x'}">Pair ${step.step_index+1} of ${step.total_steps}: ${errorLabel} error</div>
     <ul>
       <li>Triggered stabilizer coordinates: ${fmtCoord(step.raw_from)} and ${secondPoint}</li>
-      <li>This pairing indicates a ${errorLabel} error occurred somewhere along the qubits between these two points.</li>
-      <li>Fix applied: a ${gateApplied} gate is applied to each affected qubit — ${pathList} — which cancels the error out.</li>
+      <li>So there is a ${errorLabel} error somewhere on the qubits between these two points.</li>
+      <li>Fix: a ${gateApplied} gate on each of ${pathList}, which cancels the error.</li>
     </ul>
   `;
   document.getElementById('correction-log').appendChild(entry);
   entry.scrollIntoView({behavior:'smooth', block:'nearest'});
 
   if(step.done){
-    document.getElementById('btn-step').textContent = 'Finish →';
+    document.getElementById('btn-step').textContent = 'Finish';
     document.getElementById('btn-step').onclick = finishCorrection;
   }
 }
@@ -890,11 +888,11 @@ async function stepCorrection(){
 async function finishCorrection(){
   correcting = false;
   document.getElementById('btn-step').style.display = 'none';
-  document.getElementById('btn-step').textContent = 'Next pair →';
+  document.getElementById('btn-step').textContent = 'Next pair';
   document.getElementById('btn-step').onclick = stepCorrection;
   document.getElementById('step-progress').style.display = 'none';
 
-  // Authentic quantum-circuit resync, exactly matching Execute()'s final step.
+  // final syndrome check with the quantum circuit, same as the end of Execute()
   const final = await api(`/api/session/${sessionId}/finalize`, {});
   applyStatePayload(final);
 
@@ -904,12 +902,12 @@ async function finishCorrection(){
   if(!anyTriggered){
     const residual = xErrors.size + zErrors.size + yErrors.size;
     if(residual===0){
-      setStatus('All syndromes read 0 — lattice fully restored to a clean state.', 'done');
+      setStatus('All syndromes read 0, the lattice is back to a clean state.', 'done');
     } else {
-      setStatus(`All syndromes read 0. ${residual} stabiliser-equivalent (undetectable) residual error(s) remain on the physical qubits — this is expected quantum error correction behaviour, not a logical error.`, 'done');
+      setStatus(`All syndromes read 0. ${residual} stabiliser-equivalent (undetectable) residual error(s) are left on the physical qubits, which is expected and isn't a logical error.`, 'done');
     }
   } else {
-    setStatus('Correction complete — some syndromes remain triggered (a logical error may have occurred).', 'errs');
+    setStatus('Correction finished but some syndromes are still 1, so there may be a logical error.', 'errs');
   }
 }
 
@@ -959,7 +957,7 @@ document.getElementById('btn-copy').addEventListener('click', ()=>{
   navigator.clipboard.writeText(text).then(()=>{
     const btn = document.getElementById('btn-copy');
     const old = btn.textContent;
-    btn.textContent = 'Copied ✓';
+    btn.textContent = 'Copied';
     setTimeout(()=>{ btn.textContent = old; }, 1400);
   });
 });

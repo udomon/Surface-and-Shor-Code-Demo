@@ -5,7 +5,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    # Serves your HTML visualizer
+    # serves the visualiser page
     return render_template('index.html')
 
 @app.route('/run_circuit', methods=['POST'])
@@ -14,11 +14,11 @@ def run_circuit():
     x_error = data.get('bitError')    # e.g., {'block': 1, 'idx': 1}
     z_error = data.get('phaseError')  # e.g., 2
     
-    # Initialize and run your Qiskit code
+    # run the Shor code with the chosen errors
     code = ShorCode()
     results = code.Execute(x_pos=x_error, z_pos=z_error)
     
-    # Return the Qiskit results to the frontend
+    # send the results back to the page
     return jsonify({
         "status": "success",
         "simulation_results": results

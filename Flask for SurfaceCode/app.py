@@ -1,10 +1,9 @@
 """
 Flask backend for the Surface Code demo.
 
-ALL decoding logic (layout, stabiliser definitions, error injection, syndrome
-calculation, minimum-weight matching via networkx, and correction application)
-is performed by the real Surface_Code.py classes — nothing is reimplemented
-in JavaScript. The frontend only renders whatever this backend returns.
+All the decoding (layout, stabilisers, error injection, syndromes, matching
+and corrections) is done by the classes in Surface_Code.py, the JavaScript
+frontend only draws what this backend sends back.
 """
 
 import uuid
@@ -15,7 +14,7 @@ from Surface_Code import Error_Correction, Surface_Code_Graph
 
 app = Flask(__name__)
 
-# In-memory session store: { session_id: { 'ec': Error_Correction, 'plan': [...], 'step_index': int } }
+# stores the Error_Correction object, plan and current step for each session
 SESSIONS = {}
 
 
@@ -65,9 +64,8 @@ def state_payload(ec):
 
 def compute_pair_path(ec, value_1, value_2):
     """
-    Exact reproduction of Error_Correction._flip_bits' path-cell computation,
-    for a single pair, without mutating ec._touched. Uses the real
-    ec._sort_pairs helper and ec.data_q membership check.
+    Same path calculation as Error_Correction._flip_bits but for one pair,
+    and without changing ec._touched.
     """
     path_cells = set()
 
@@ -90,11 +88,10 @@ def compute_pair_path(ec, value_1, value_2):
 
 def build_plan_for_type(ec, syndrome_type, syndrome_dict):
     """
-    Exact reproduction of the graph-building and matching portion of
-    Error_Correction.minimum_weight_matching — using the real
-    networkx.algorithms.matching.max_weight_matching — but returns a list of
-    step dicts instead of immediately applying every correction in one shot.
-    Nothing here mutates ec's error state; that happens per-step later.
+    Builds the matching graph the same way as
+    Error_Correction.minimum_weight_matching, but returns a list of steps
+    instead of applying all the corrections at once. Doesn't change the
+    errors in ec, that happens one step at a time later.
     """
     errors = [syn for syn, val in syndrome_dict.items() if val == 1]
 
@@ -125,7 +122,7 @@ def build_plan_for_type(ec, syndrome_type, syndrome_dict):
     matches = nx.algorithms.matching.max_weight_matching(G, maxcardinality=True)
 
     steps = []
-    # Sorted for a deterministic, stable stepping order in the UI.
+    # sorted so the steps always come out in the same order
     for pair in sorted(matches, key=lambda p: str(p)):
         value_1, value_2 = pair
         i_1, j_1 = value_1
@@ -198,7 +195,7 @@ def api_session_start():
 
     ec.inject_errors(x_pos=x_errors, z_pos=z_errors)
     if resync == 'quantum':
-        # Authentic quantum-circuit resync, exactly matching Execute()'s default behaviour.
+        # recalculate syndromes with the quantum circuit, same as Execute()
         ec.x_syndrome, ec.z_syndrome = ec.calculate_syndromes_from_circuit()
 
     session_id = str(uuid.uuid4())
@@ -217,9 +214,7 @@ def api_session_plan(session_id):
         return jsonify({"error": "unknown session"}), 404
     ec = session["ec"]
 
-    # Built from the frozen initial syndromes, exactly as Execute() calls
-    # minimum_weight_matching('X', ...) then minimum_weight_matching('Z', ...)
-    # both against syndromes captured before any correction is applied.
+    # both plans use the syndromes from before any correction, same as Execute()
     x_plan = build_plan_for_type(ec, 'X', ec.x_syndrome)
     z_plan = build_plan_for_type(ec, 'Z', ec.z_syndrome)
 
@@ -252,7 +247,7 @@ def api_session_step(session_id):
         coord = tuple(cell)
         ec._apply_correction(coord, step["type"])
 
-    # Live classical resync for display purposes between steps.
+    # recalculate syndromes classically so the UI updates between steps
     ec._calculate_syndromes()
 
     resp = {
@@ -277,7 +272,7 @@ def api_session_finalize(session_id):
         return jsonify({"error": "unknown session"}), 404
     ec = session["ec"]
 
-    # Authentic quantum-circuit resync, exactly matching Execute()'s final step.
+    # final syndrome check with the quantum circuit, same as the end of Execute()
     ec.x_syndrome, ec.z_syndrome = ec.calculate_syndromes_from_circuit()
 
     return jsonify(state_payload(ec))
